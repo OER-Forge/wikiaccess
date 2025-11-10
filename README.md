@@ -47,9 +47,24 @@ WikiAccess generates comprehensive accessibility reports showing:
 
 ## 🚀 Installation
 
+### Option 1: Install as Package (Recommended)
+
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/wikiaccess.git
+git clone https://github.com/OER-Forge/wikiaccess.git
+cd wikiaccess
+
+# Install in virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -e .
+```
+
+### Option 2: From Source
+
+```bash
+# Clone repository
+git clone https://github.com/OER-Forge/wikiaccess.git
 cd wikiaccess
 
 # Create virtual environment
@@ -63,29 +78,62 @@ pip install -r requirements.txt
 ### Requirements
 - Python 3.7+
 - python-docx ≥0.8.11
-- beautifulsoup4
-- lxml
+- beautifulsoup4 ≥4.12.0
+- lxml ≥4.9.0
 - Pillow ≥10.0.0
 - requests ≥2.31.0
-- latex2mathml
+- latex2mathml ≥3.0.0
 
 ## 📖 Quick Start
 
-### Dual-Format Conversion with Accessibility Reports
+### Simple High-Level API
 
 ```python
-from scraper import DokuWikiHTTPClient
-from html_converter import HTMLConverter
-from convert import EnhancedDokuWikiConverter
-from a11y_checker import AccessibilityChecker
-from reporter import ReportGenerator
+from wikiaccess import convert_wiki_page
 
-# Initialize
+# Convert a single page with all features
+result = convert_wiki_page(
+    wiki_url='https://wiki.example.com',
+    page_name='page:name',
+    output_dir='output',
+    formats=['html', 'docx'],
+    check_accessibility=True
+)
+
+print(f"HTML: {result['html']['file_path']}")
+print(f"DOCX: {result['docx']['file_path']}")
+print(f"Report: {result['accessibility_report']}")
+```
+
+### Command Line Interface
+
+```bash
+# Convert single page
+wikiaccess https://wiki.example.com page:name -o output
+
+# Convert multiple pages
+wikiaccess https://wiki.example.com page1 page2 page3 -f html docx
+
+# HTML only, no accessibility checks
+wikiaccess https://wiki.example.com page:name -f html --no-accessibility
+```
+
+### Advanced Modular Usage
+
+```python
+from wikiaccess import (
+    DokuWikiHTTPClient, 
+    HTMLConverter, 
+    EnhancedDokuWikiConverter,
+    AccessibilityChecker,
+    ReportGenerator
+)
+
+# Initialize components
 client = DokuWikiHTTPClient('https://wiki.example.com')
 html_converter = HTMLConverter(client)
 docx_converter = EnhancedDokuWikiConverter(client)
 checker = AccessibilityChecker()
-reporter = ReportGenerator('output')
 
 # Convert page
 url = 'https://wiki.example.com/doku.php?id=page:name'
@@ -93,7 +141,7 @@ url = 'https://wiki.example.com/doku.php?id=page:name'
 # HTML output
 html_path, html_stats = html_converter.convert_url(url)
 
-# Word output
+# Word output  
 docx_stats = docx_converter.convert_url(url, 'output.docx')
 
 # Check accessibility
