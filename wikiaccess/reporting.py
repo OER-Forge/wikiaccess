@@ -14,7 +14,7 @@ https://github.com/yourusername/wikiaccess
 """
 
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
 
@@ -319,7 +319,7 @@ class ReportGenerator:
 </html>'''
     
     def _build_combined_detail_html(self, page_name: str, html_report: Dict, docx_report: Dict, 
-                                    html_stats: Dict = None, docx_stats: Dict = None) -> str:
+                                    html_stats: Optional[Dict] = None, docx_stats: Optional[Dict] = None) -> str:
         """Build combined detailed report HTML for both HTML and DOCX"""
         
         html_stats = html_stats or {}

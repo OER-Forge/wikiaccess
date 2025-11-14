@@ -3,12 +3,18 @@ WikiAccess Unified Interface
 
 High-level convenience functions for common WikiAccess operations.
 These provide simple interfaces for the most common use cases.
+
+Uses Markdown as intermediate format:
+1. DokuWiki → Markdown (simple parser)
+2. Markdown → HTML/DOCX (pandoc)
+3. Check accessibility
+4. Generate reports
 """
 
 from pathlib import Path
 from typing import Optional, Dict, Any
 from .scraper import DokuWikiHTTPClient
-from .converters import HTMLConverter, EnhancedDokuWikiConverter
+from .markdown_converter import MarkdownConverter
 from .accessibility import AccessibilityChecker
 from .reporting import ReportGenerator
 
@@ -21,7 +27,7 @@ def convert_wiki_page(
     check_accessibility: bool = True
 ) -> Dict[str, Any]:
     """
-    Convert a single DokuWiki page to accessible documents.
+    Convert a single DokuWiki page to accessible documents via Markdown.
     
     Args:
         wiki_url: Base URL of the DokuWiki site
@@ -44,57 +50,55 @@ def convert_wiki_page(
     
     # Initialize components
     client = DokuWikiHTTPClient(wiki_url)
+    converter = MarkdownConverter(client, output_dir)
     results = {}
     
-    # Generate HTML if requested
-    if 'html' in formats:
-        html_converter = HTMLConverter(client)
-        page_url = f"{wiki_url}/doku.php?id={page_name}"
-        html_output_path, html_stats = html_converter.convert_url(page_url)
+    # Convert DokuWiki → Markdown → HTML/DOCX
+    page_url = f"{wiki_url}/doku.php?id={page_name}"
+    html_path, docx_path, stats = converter.convert_url(page_url)
+    
+    if html_path:
         results['html'] = {
-            'file_path': html_output_path,
-            'stats': html_stats
+            'file_path': html_path,
+            'stats': stats
         }
     
-    # Generate DOCX if requested  
-    if 'docx' in formats:
-        word_converter = EnhancedDokuWikiConverter(client)
-        page_url = f"{wiki_url}/doku.php?id={page_name}"
-        docx_output_path = output_path / f"{page_name.replace(':', '_')}.docx"
-        docx_stats = word_converter.convert_url(page_url, str(docx_output_path))
+    if docx_path:
         results['docx'] = {
-            'file_path': str(docx_output_path),
-            'stats': docx_stats
+            'file_path': docx_path,
+            'stats': stats
         }
-        
-        # Run accessibility checks if requested
+    
+    # Run accessibility checks if requested
     if check_accessibility:
         checker = AccessibilityChecker()
         accessibility_results = {}
         
-        if 'html' in results:
-            html_accessibility = checker.check_html(results['html']['file_path'])
+        if html_path:
+            html_accessibility = checker.check_html(html_path)
             accessibility_results['html'] = html_accessibility
-            
-        if 'docx' in results:
-            docx_accessibility = checker.check_docx(results['docx']['file_path'])
+        
+        if docx_path:
+            docx_accessibility = checker.check_docx(docx_path)
             accessibility_results['docx'] = docx_accessibility
-            
+        
         results['accessibility'] = accessibility_results
         
         # Generate accessibility report
         if accessibility_results:
             reporter = ReportGenerator(str(output_path))
-            # Add the reports to the reporter
             page_display_name = page_name.replace(':', '_')
+            
+            html_report = accessibility_results.get('html', {})
+            docx_report = accessibility_results.get('docx', {})
+            
             reporter.add_page_reports(
                 page_display_name,
-                accessibility_results.get('html', {}),
-                accessibility_results.get('docx', {}),
+                html_report,
+                docx_report,
                 results.get('html', {}).get('stats', {}),
                 results.get('docx', {}).get('stats', {})
             )
-            # Generate the detailed reports and dashboard
             reporter.generate_detailed_reports()
             dashboard_path = reporter.generate_dashboard()
             results['accessibility_report'] = dashboard_path
@@ -114,27 +118,79 @@ def convert_multiple_pages(
     
     Args:
         wiki_url: Base URL of the DokuWiki site
-        page_names: List of wiki page names to convert
+        page_names: List of page names to convert
         output_dir: Directory to save outputs (defaults to 'output')
-        formats: List of formats to generate ['html', 'docx'] (defaults to both)
+        formats: List of formats to generate (defaults to both)
         check_accessibility: Whether to run accessibility checks
         
     Returns:
         Dictionary mapping page names to their conversion results
     """
-    results = {}
+    if output_dir is None:
+        output_dir = "output"
+    
+    if formats is None:
+        formats = ['html', 'docx']
+    
+    # Collect all page results for combined report
+    output_path = Path(output_dir)
+    output_path.mkdir(exist_ok=True)
+    
+    client = DokuWikiHTTPClient(wiki_url)
+    converter = MarkdownConverter(client, output_dir)
+    
+    page_results = {}
+    reporter = ReportGenerator(str(output_path)) if check_accessibility else None
     
     for page_name in page_names:
+        print(f"\n{'='*70}\nPage: {page_name}\n{'='*70}")
+        
         try:
-            page_result = convert_wiki_page(
-                wiki_url=wiki_url,
-                page_name=page_name,
-                output_dir=output_dir,
-                formats=formats,
-                check_accessibility=check_accessibility
-            )
-            results[page_name] = page_result
-        except Exception as e:
-            results[page_name] = {'error': str(e)}
+            page_url = f"{wiki_url}/doku.php?id={page_name}"
+            html_path, docx_path, stats = converter.convert_url(page_url)
             
-    return results
+            results = {
+                'html': {'file_path': html_path, 'stats': stats} if html_path else None,
+                'docx': {'file_path': docx_path, 'stats': stats} if docx_path else None
+            }
+            
+            # Check accessibility
+            if check_accessibility:
+                checker = AccessibilityChecker()
+                accessibility_results = {}
+                
+                if html_path:
+                    html_accessibility = checker.check_html(html_path)
+                    accessibility_results['html'] = html_accessibility
+                
+                if docx_path:
+                    docx_accessibility = checker.check_docx(docx_path)
+                    accessibility_results['docx'] = docx_accessibility
+                
+                results['accessibility'] = accessibility_results
+                
+                # Add to reporter
+                page_display_name = page_name.replace(':', '_')
+                reporter.add_page_reports(
+                    page_display_name,
+                    accessibility_results.get('html', {}),
+                    accessibility_results.get('docx', {}),
+                    stats,
+                    stats
+                )
+            
+            page_results[page_name] = results
+            print(f"✓ Successfully converted: {page_name}")
+        
+        except Exception as e:
+            page_results[page_name] = {'error': str(e)}
+            print(f"✗ Failed to convert {page_name}: {e}")
+    
+    # Generate combined reports
+    if check_accessibility and reporter:
+        print(f"\n{'='*70}\nGenerating Combined Accessibility Report\n{'='*70}")
+        reporter.generate_detailed_reports()
+        dashboard = reporter.generate_dashboard()
+        print(f"\n📊 Dashboard: {dashboard}")
+    
+    return page_results

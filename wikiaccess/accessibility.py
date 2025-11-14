@@ -173,32 +173,37 @@ class AccessibilityChecker:
             self.passes.append(f'✓ Heading hierarchy correct ({len(headings)} headings)')
     
     def _check_images(self, soup):
-        """Check images for alt text"""
+        """Check images for alt text and include figure names when available"""
         images = soup.find_all('img')
         
         if not images:
             self.passes.append('✓ No images to check')
             return
         
-        missing_alt = []
-        empty_alt = []
+        from pathlib import Path as _Path
         
         for img in images:
-            if not img.has_attr('alt'):
-                missing_alt.append(img.get('src', 'unknown'))
-            elif len(img['alt'].strip()) == 0:
-                empty_alt.append(img.get('src', 'unknown'))
+            src = img.get('src', 'unknown')
+            alt = img.get('alt')
+            figure_name = None
+            # Try to use figcaption text if present
+            if img.parent and getattr(img.parent, 'name', '') == 'figure':
+                cap = img.parent.find('figcaption')
+                if cap and cap.get_text(strip=True):
+                    figure_name = cap.get_text(strip=True)
+            # Fallback to filename
+            if not figure_name and src and src != 'unknown':
+                figure_name = _Path(src).name
+            
+            if alt is None:
+                label = figure_name or src or 'image'
+                self.issues_aa.append(f'✗ Image missing alt attribute: {label} (src: {src}) (WCAG 1.1.1)')
+            elif len(alt.strip()) == 0:
+                label = figure_name or src or 'image'
+                self.warnings.append(f'⚠ Image with empty alt text: {label} (src: {src}) - verify if decorative')
         
-        if missing_alt:
-            for src in missing_alt:
-                self.issues_aa.append(f'✗ Image missing alt attribute: {src} (WCAG 1.1.1)')
-        
-        if empty_alt:
-            for src in empty_alt:
-                self.warnings.append(f'⚠ Image with empty alt text: {src} - verify if decorative')
-        
-        if not missing_alt and len(images) > 0:
-            self.passes.append(f'✓ All {len(images)} images have alt attributes')
+        if all(img.has_attr('alt') and img.get('alt', '').strip() for img in images):
+            self.passes.append(f'✓ All {len(images)} images have descriptive alt text')
     
     def _check_links(self, soup):
         """Check links for accessibility"""
@@ -358,21 +363,57 @@ class AccessibilityChecker:
         self.passes.append(f'✓ {len(headings)} heading styles used')
     
     def _check_docx_images(self, doc):
-        """Check images for alt text"""
-        # Count images with shapes
-        image_count = 0
-        missing_alt = 0
-        
-        for rel in doc.part.rels.values():
-            if "image" in rel.target_ref:
-                image_count += 1
-        
-        # Note: Checking alt text in python-docx is complex
-        # This is a simplified check
-        if image_count > 0:
-            self.warnings.append(f'⚠ {image_count} images found - verify alt text manually in Word')
-        else:
+        """Check images for alt text and report figure names when available"""
+        # Rough count of images via relationships
+        image_count = sum(1 for rel in doc.part.rels.values() if "image" in getattr(rel, 'target_ref', ''))
+        if image_count == 0:
             self.passes.append('✓ No images to check')
+        
+        missing_alt_images = []
+        empty_alt_images = []
+        good_images = 0
+        
+        from docx.oxml.ns import qn
+        from pathlib import Path as _P
+        
+        # Inspect inline shapes for alt properties
+        for shape in getattr(doc, 'inline_shapes', []):
+            try:
+                docPr = shape._inline.docPr
+                # Prefer explicit properties
+                descr = docPr.get('descr') or docPr.get('{http://schemas.openxmlformats.org/drawingml/2006/main}descr')
+                title = docPr.get('title')
+                name_attr = docPr.get('name')
+                
+                # Try to resolve actual image filename via relationship
+                img_filename = None
+                try:
+                    blip = shape._inline.graphic.graphicData.pic.blipFill.blip
+                    rId = blip.get(qn('r:embed'))
+                    if rId and rId in doc.part.related_parts:
+                        part = doc.part.related_parts[rId]
+                        img_filename = _P(str(part.partname)).name
+                except Exception:
+                    pass
+                
+                image_label = name_attr or img_filename or 'Image'
+                text = (descr or title)
+                if text is None:
+                    missing_alt_images.append(image_label)
+                elif len(text.strip()) == 0:
+                    empty_alt_images.append(image_label)
+                else:
+                    good_images += 1
+            except Exception:
+                missing_alt_images.append('Image')
+        
+        # Report findings
+        for img_name in missing_alt_images:
+            self.issues_aa.append(f'✗ Image missing alt text: {img_name} (WCAG 1.1.1)')
+        for img_name in empty_alt_images:
+            self.warnings.append(f'⚠ Image with empty alt text: {img_name} - verify if decorative')
+        if good_images > 0:
+            self.passes.append(f'✓ {good_images} images have alt text')
     
     def _check_docx_links(self, doc):
         """Check hyperlinks"""

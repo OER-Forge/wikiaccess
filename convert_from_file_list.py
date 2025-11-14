@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-"""Convert URLs from URLS.txt to accessible HTML and DOCX"""
+"""Convert URLs from URLS.txt to accessible HTML, DOCX, and Markdown"""
 
 import sys
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
-from wikiaccess.scraper import DokuWikiHTTPClient
-from wikiaccess.converters import HTMLConverter, EnhancedDokuWikiConverter
-from wikiaccess.accessibility import AccessibilityChecker
-from wikiaccess.reporting import ReportGenerator
+from wikiaccess.unified import convert_multiple_pages
 
 # Configuration
 URL_FILE = 'URLS.txt'
@@ -34,51 +31,50 @@ def main():
         print(f"Error: No URLs found in {URL_FILE}")
         sys.exit(1)
     
-    print(f"Converting {len(urls)} URLs from {URL_FILE}...")
+    print(f"Converting {len(urls)} URLs from {URL_FILE}...\n")
     
-    # Setup
-    output_path = Path(OUTPUT_DIR)
-    output_path.mkdir(exist_ok=True)
-    checker = AccessibilityChecker()
-    reporter = ReportGenerator(OUTPUT_DIR)
+    # Extract page IDs from URLs
+    page_ids = []
+    wiki_url = None
     
-    # Convert each URL
-    for i, url in enumerate(urls, 1):
-        print(f"\n[{i}/{len(urls)}] {url}")
-        try:
-            base_url, page_id = parse_dokuwiki_url(url)
-            page_name = page_id.replace(':', '_')
-            
-            # Initialize client and converters
-            client = DokuWikiHTTPClient(base_url)
-            html_converter = HTMLConverter(client)
-            docx_converter = EnhancedDokuWikiConverter(client)
-            
-            # Convert to HTML
-            page_url = f"{base_url}/doku.php?id={page_id}"
-            html_path, html_stats = html_converter.convert_url(page_url)
-            
-            # Convert to DOCX
-            docx_path = output_path / f"{page_name}.docx"
-            docx_stats = docx_converter.convert_url(page_url, str(docx_path))
-            
-            # Check accessibility
-            html_report = checker.check_html(html_path)
-            docx_report = checker.check_docx(str(docx_path))
-            
-            # Add to reporter
-            reporter.add_page_reports(page_name, html_report, docx_report, html_stats, docx_stats)
-            
-            print("✓ Done")
-        except Exception as e:
-            print(f"✗ Failed: {e}")
+    for url in urls:
+        base_url, page_id = parse_dokuwiki_url(url)
+        if wiki_url is None:
+            wiki_url = base_url
+        page_ids.append(page_id)
     
-    # Generate final report
-    print("\n📊 Generating accessibility report...")
-    reporter.generate_detailed_reports()
-    dashboard = reporter.generate_dashboard()
-    print(f"✓ Report: {dashboard}")
-    print(f"\n✓ All conversions complete. Output in {OUTPUT_DIR}/")
+    if not wiki_url:
+        print(f"Error: Could not parse wiki URL")
+        sys.exit(1)
+    
+    # Use unified interface to convert multiple pages
+    # This generates Markdown + HTML + DOCX + Accessibility reports
+    results = convert_multiple_pages(
+        wiki_url=wiki_url,
+        page_names=page_ids,
+        output_dir=OUTPUT_DIR,
+        formats=['html', 'docx'],
+        check_accessibility=True
+    )
+    
+    # Summary
+    print(f"\n{'='*70}")
+    print("CONVERSION SUMMARY")
+    print(f"{'='*70}")
+    
+    success_count = sum(1 for r in results.values() if 'error' not in r)
+    error_count = len(results) - success_count
+    
+    print(f"✓ Successful: {success_count}/{len(results)}")
+    if error_count > 0:
+        print(f"✗ Failed: {error_count}/{len(results)}")
+    
+    print(f"\nOutput directory: {OUTPUT_DIR}/")
+    print(f"  - Markdown files: {OUTPUT_DIR}/*.md")
+    print(f"  - HTML files: {OUTPUT_DIR}/html/")
+    print(f"  - DOCX files: {OUTPUT_DIR}/docx/")
+    print(f"  - Images: {OUTPUT_DIR}/images/")
+    print(f"  - Accessibility report: {OUTPUT_DIR}/accessibility_report.html")
 
 if __name__ == '__main__':
     main()

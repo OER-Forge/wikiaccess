@@ -1,3 +1,6 @@
+#VS Code
+wikiaccess.code-workspace
+
 # Python
 __pycache__/
 *.py[cod]
