@@ -2,6 +2,11 @@
 
 ## Installation
 
+### Prerequisites
+- **Python 3.8+** with pip
+- **Pandoc 2.9+** (for document conversion)  
+- **Node.js and npm** (for accessibility testing with pa11y)
+
 ```bash
 # Clone the repository
 git clone https://github.com/OER-Forge/wikiaccess.git
@@ -11,10 +16,10 @@ cd wikiaccess
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
 
-# Install Pandoc (required)
+# Install Pandoc (required for HTML/DOCX conversion)
 # macOS:
 brew install pandoc
 
@@ -22,6 +27,23 @@ brew install pandoc
 sudo apt-get install pandoc
 
 # Windows: Download from https://pandoc.org/installing.html
+
+# Install Node.js (required for accessibility testing)
+# macOS:
+brew install node
+
+# Linux:
+sudo apt install nodejs npm
+
+# Windows: Download from https://nodejs.org/
+
+# Install pa11y for accessibility testing
+npm install pa11y
+
+# Verify installation
+python3 -c "from wikiaccess import convert_wiki_page; print('✓ WikiAccess ready')"
+pandoc --version
+npx pa11y --version
 ```
 
 ## Basic Usage

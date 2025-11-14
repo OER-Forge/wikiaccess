@@ -2,24 +2,47 @@
 
 ## Overview
 
-WikiAccess uses a comprehensive WCAG 2.1-based scoring system to evaluate the accessibility of converted HTML and DOCX documents. The system provides both **AA (Level AA)** and **AAA (Level AAA)** compliance scores ranging from 0-100%.
+WikiAccess uses **pa11y** - an industry-standard accessibility testing tool - to evaluate the accessibility of converted HTML documents against WCAG 2.1 standards. For DOCX documents, custom accessibility checks ensure document structure compliance.
+
+## Technology Stack
+
+### HTML Accessibility Testing: pa11y
+- **Tool**: [pa11y](https://github.com/pa11y/pa11y) - command-line accessibility testing
+- **Engine**: Powered by aXe accessibility engine
+- **Standards**: WCAG 2.1 AA and AAA compliance testing
+- **Coverage**: ~50+ comprehensive accessibility rules
+- **Requirements**: Node.js and npm installation
+
+### DOCX Accessibility Testing: Custom Implementation  
+- **Tool**: Custom Python implementation using python-docx
+- **Coverage**: Document structure, titles, language, headings, images, links
+- **Standards**: Core WCAG 2.1 requirements applicable to documents
 
 ## Scoring Methodology
 
 ### Score Calculation Formula
 
-The accessibility scoring uses a **pass/fail ratio** approach:
+WikiAccess uses pa11y's failure-based scoring approach:
 
 ```
-AA Score = (Passed Checks / Total AA Checks) × 100
-AAA Score = (Passed Checks / (Total AA Checks + Total AAA Checks)) × 100
+AA Score = max(0, (Estimated_Tests - AA_Failures) / Estimated_Tests × 100)
+AAA Score = max(0, (Estimated_Tests - (AA_Failures + AAA_Failures)) / Estimated_Tests × 100)
 ```
 
 Where:
-- **Passed Checks**: Number of accessibility tests that passed
-- **Total AA Checks**: All WCAG AA-level tests performed  
-- **Total AAA Checks**: All WCAG AAA-level tests performed
-- **Warnings**: Do not count toward pass/fail - informational only
+- **Estimated_Tests**: ~50 (pa11y's comprehensive ruleset)
+- **AA_Failures**: Number of WCAG 2.1 AA violations detected by pa11y
+- **AAA_Failures**: Number of WCAG 2.1 AAA violations detected by pa11y
+- **Conservative Approach**: Uses estimated test count since pa11y only reports failures
+
+### pa11y Integration Benefits
+
+✅ **Industry Standard**: Uses the same engine as major accessibility tools  
+✅ **Comprehensive**: 50+ accessibility rules vs. previous 16 custom rules  
+✅ **Accurate Contrast**: Real contrast ratio calculations with recommendations  
+✅ **Detailed Feedback**: Specific element selectors and fix suggestions  
+✅ **WCAG Compliance**: Direct mapping to official WCAG 2.1 guidelines  
+✅ **Continuous Updates**: pa11y ruleset maintained by accessibility experts
 
 ### Score Interpretation
 
