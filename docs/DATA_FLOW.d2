@@ -1,0 +1,110 @@
+direction: right
+
+Input: "INPUT SOURCES" {
+  DokuWiki: "DokuWiki Server"
+  FileList: "URLS.txt"
+  MarkdownFiles: "Edited .md files"
+}
+
+// Phase 1: Scraping & Parsing
+ScrapePhase: "SCRAPE & PARSE" {
+  Scraper: "scraper.py\nDokuWikiHTTPClient"
+  Parser: "parser.py\nDokuWikiParser" 
+  RawContent: "Raw DokuWiki\nHTML + Media URLs"
+}
+
+// Phase 2: Markdown Generation  
+MarkdownPhase: "MARKDOWN GENERATION" {
+  Converter: "markdown_converter.py\n_convert_to_markdown()"
+  MarkdownFiles: "output/markdown/\npage1.md, page2.md..."
+}
+
+// Phase 3: Media Handling
+MediaPhase: "MEDIA DOWNLOAD" {
+  ImageDownload: "_process_image()" 
+  YouTubeThumb: "YouTube thumbnails"
+  ImagesDir: "output/images/"
+}
+
+// Phase 4: Document Conversion
+ConvertPhase: "PANDOC CONVERSION" {
+  PandocHTML: "Pandoc → HTML5"
+  PandocDOCX: "Pandoc → DOCX"
+  HTMLDir: "output/html/"
+  DOCXDir: "output/docx/"
+}
+
+// Phase 5: HTML Enhancement
+HTMLEnhance: "HTML ENHANCEMENT" {
+  MathJax: "Add MathJax script"
+  ImagePaths: "Fix ../images/ paths"
+  CSS: "Add styling"
+  EnhancedHTML: "Enhanced HTML"
+}
+
+// Phase 6: Accessibility Check
+CheckPhase: "ACCESSIBILITY CHECK" {
+  HTMLCheck: "check_html()"
+  DOCXCheck: "check_docx()"
+  CheckResult: "WCAG AA/AAA Results"
+}
+
+// Phase 7: Report Generation
+ReportPhase: "REPORT GENERATION" {
+  Reporter: "reporting.py"
+  Dashboard: "accessibility_report.html"
+  DetailPages: "page_accessibility.html"
+  ReportsDir: "output/reports/"
+}
+
+// Final Output Structure
+FinalOutputs: "FINAL STRUCTURE" {
+  OutputMarkdown: "output/markdown/ (editable)"
+  OutputImages: "output/images/ (assets)"
+  OutputHTML: "output/html/ (web pages)"
+  OutputDOCX: "output/docx/ (documents)"
+  OutputReports: "output/reports/ (accessibility)"
+}
+
+// Main data flow connections
+Input.DokuWiki -> ScrapePhase.Scraper
+Input.FileList -> ScrapePhase.Scraper
+ScrapePhase.Scraper -> ScrapePhase.Parser
+ScrapePhase.Parser -> ScrapePhase.RawContent
+
+ScrapePhase.RawContent -> MarkdownPhase.Converter
+MarkdownPhase.Converter -> MarkdownPhase.MarkdownFiles
+MarkdownPhase.Converter -> MediaPhase.ImageDownload
+
+MediaPhase.ImageDownload -> MediaPhase.ImagesDir
+MediaPhase.YouTubeThumb -> MediaPhase.ImagesDir
+
+MarkdownPhase.MarkdownFiles -> ConvertPhase.PandocHTML
+MarkdownPhase.MarkdownFiles -> ConvertPhase.PandocDOCX
+ConvertPhase.PandocHTML -> ConvertPhase.HTMLDir
+ConvertPhase.PandocDOCX -> ConvertPhase.DOCXDir
+
+ConvertPhase.HTMLDir -> HTMLEnhance.MathJax
+HTMLEnhance.MathJax -> HTMLEnhance.EnhancedHTML
+
+HTMLEnhance.EnhancedHTML -> CheckPhase.HTMLCheck
+ConvertPhase.DOCXDir -> CheckPhase.DOCXCheck
+CheckPhase.HTMLCheck -> CheckPhase.CheckResult
+CheckPhase.DOCXCheck -> CheckPhase.CheckResult
+
+CheckPhase.CheckResult -> ReportPhase.Reporter
+ReportPhase.Reporter -> ReportPhase.Dashboard
+ReportPhase.Reporter -> ReportPhase.DetailPages
+ReportPhase.Dashboard -> ReportPhase.ReportsDir
+ReportPhase.DetailPages -> ReportPhase.ReportsDir
+
+// Final outputs
+MarkdownPhase.MarkdownFiles -> FinalOutputs.OutputMarkdown
+MediaPhase.ImagesDir -> FinalOutputs.OutputImages
+HTMLEnhance.EnhancedHTML -> FinalOutputs.OutputHTML
+ConvertPhase.DOCXDir -> FinalOutputs.OutputDOCX
+ReportPhase.ReportsDir -> FinalOutputs.OutputReports
+
+// Workflow 2: Edit & Re-convert (bypass scraping)
+Input.MarkdownFiles -> ConvertPhase.PandocHTML: "Direct re-conversion"
+Input.MarkdownFiles -> ConvertPhase.PandocDOCX: "Direct re-conversion"

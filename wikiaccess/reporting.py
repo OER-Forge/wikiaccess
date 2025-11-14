@@ -110,8 +110,8 @@ class ReportGenerator:
             docx_aaa_color = self._get_score_color(docx_aaa)
             
             detail_link = f'{page_name}_accessibility.html'
-            html_file_link = f'html/{page_name}.html'
-            docx_file_link = f'docx/{page_name}.docx'
+            html_file_link = f'../html/{page_name}.html'
+            docx_file_link = f'../docx/{page_name}.docx'
             
             page_rows.append(f'''
                 <tr>
@@ -490,8 +490,8 @@ class ReportGenerator:
     <a href="accessibility_report.html" class="back-link">← Back to Dashboard</a>
     
     <div class="file-links">
-        <a href="html/{page_name}.html" target="_blank">📄 View HTML Version</a>
-        <a href="docx/{page_name}.docx" target="_blank">📄 Download DOCX Version</a>
+        <a href="../html/{page_name}.html" target="_blank">📄 View HTML Version</a>
+        <a href="../docx/{page_name}.docx" target="_blank">📄 Download DOCX Version</a>
     </div>
     
     <header>

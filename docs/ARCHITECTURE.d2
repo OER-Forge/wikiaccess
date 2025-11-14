@@ -1,0 +1,119 @@
+// WikiAccess System Architecture
+// D2 Diagram: System components and data flow
+
+direction: right
+
+// Input
+DokuWiki: "DokuWiki Site"
+
+// Scraper Layer
+Scraper: "scraper.py\nDokuWikiHTTPClient" {
+  "Fetch page content"
+  "Download media"
+}
+
+// Parser Layer
+Parser: "parser.py\nDokuWikiParser" {
+  "Parse DokuWiki syntax"
+  "Extract formatting"
+  "Find images/videos"
+}
+
+// Markdown (Intermediate)
+Markdown: "Markdown Files\n(Editable)" {
+  "page1.md"
+  "page2.md"
+  "..."
+  color: "#e8f4f8"
+}
+
+// Download Media
+MediaDownload: "Image/Media Download" {
+  "Regular images → images/"
+  "YouTube → youtube_[id].jpg"
+}
+
+Images: "output/images/" {
+  "image1.png"
+  "image2.jpg"
+  "youtube_vid1.jpg"
+  color: "#f0f0f0"
+}
+
+// Converter Layer
+Converter: "markdown_converter.py\nMarkdownConverter" {
+  "Pandoc HTML generation"
+  "Pandoc DOCX generation"
+  "Add MathJax to HTML"
+}
+
+HTML: "output/html/" {
+  "page1.html"
+  "page2.html"
+  color: "#e8f8e8"
+}
+
+DOCX: "output/docx/" {
+  "page1.docx"
+  "page2.docx"
+  color: "#f8e8e8"
+}
+
+// Accessibility Check Layer
+Checker: "accessibility.py\nAccessibilityChecker" {
+  "Check WCAG AA/AAA"
+  "Validate images"
+  "Check equations"
+}
+
+AccessibilityReports: "accessibility.py output" {
+  "aa_score: 85%"
+  "aaa_score: 65%"
+  "issues: [...]"
+  color: "#fff8e8"
+}
+
+// Reporter Layer
+Reporter: "reporting.py\nReportGenerator" {
+  "Generate HTML dashboard"
+  "Create detail pages"
+  "Link to converted files"
+}
+
+Reports: "output/reports/" {
+  "accessibility_report.html"
+  "page1_accessibility.html"
+  color: "#f0e8f8"
+}
+
+// Workflow Labels
+Workflow1: "Workflow 1:\nFull Scrape → Markdown → HTML/DOCX → Check"
+
+Workflow2: "Workflow 2:\nEdit Markdown → Pandoc → Check"
+
+// Connections - Full pipeline
+DokuWiki -> Scraper
+Scraper -> Parser
+Parser -> Markdown
+Parser -> MediaDownload
+MediaDownload -> Images
+Markdown -> Converter
+Converter -> HTML
+Converter -> DOCX
+HTML -> Checker
+DOCX -> Checker
+Checker -> AccessibilityReports
+AccessibilityReports -> Reporter
+Reporter -> Reports
+
+// Connection - Direct markdown re-conversion
+Markdown -> Converter: "Edit & re-convert\n(Workflow 2)"
+
+// Connection - HTML/DOCX output
+HTML -> Reports
+DOCX -> Reports
+
+// Output files
+OutputNote: "Final Outputs:"
+
+Reports -> OutputNote

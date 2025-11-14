@@ -1,0 +1,184 @@
+// WikiAccess Conversion Workflows
+// D2 Diagram: Step-by-step workflows
+
+direction: down
+
+// WORKFLOW 1: FULL CONVERSION
+
+Workflow1Title: "WORKFLOW 1: Full DokuWiki Conversion (with scraping)"
+
+W1Step1: "1. Input: DokuWiki URL List" {
+  shape: "queue"
+}
+
+W1Step2: "2. HTTP Scraper (scraper.py)" {
+  "Fetch page content"
+  "Download images"
+  "Extract media paths"
+  color: "#e8f4f8"
+}
+
+W1Step3: "3. DokuWiki Parser (parser.py)" {
+  "Parse wiki syntax"
+  "Extract structure"
+  "Identify media/equations"
+  color: "#e8f4f8"
+}
+
+W1Step4: "4. Generate Markdown" {
+  "DokuWiki → Markdown"
+  "Save to output/markdown/"
+  color: "#e8f4f8"
+}
+
+W1Step5: "5. Download Media" {
+  "Regular images → images/"
+  "YouTube → thumbnails"
+}
+
+W1Step6: "6. Pandoc Conversion" {
+  "Markdown → HTML"
+  "Markdown → DOCX"
+  "Pass resource-path"
+  color: "#e8e8f8"
+}
+
+W1Step7: "7. Accessibility Check" {
+  "Check WCAG AA/AAA"
+  "Validate images"
+  "Analyze equations"
+  color: "#f8e8e8"
+}
+
+W1Step8: "8. Generate Reports" {
+  "Create dashboard"
+  "Detail pages"
+  "Link files"
+  color: "#f0e8f8"
+}
+
+W1Output: "OUTPUTS:" {
+  "✓ output/markdown/*.md"
+  "✓ output/html/*.html"
+  "✓ output/docx/*.docx"
+  "✓ output/images/*"
+  "✓ output/reports/*.html"
+  color: "#e8f8e8"
+}
+
+// WORKFLOW 2: EDIT & RE-CONVERT
+
+Workflow2Title: "WORKFLOW 2: Edit Markdown & Re-convert (no scraping)"
+
+W2Step1: "1. User Edits Markdown" {
+  "Edit output/markdown/page.md"
+  "Fix content/equations"
+  "Improve formatting"
+  shape: "queue"
+}
+
+W2Step2: "2. Run Conversion Script" {
+  "python convert_from_markdown.py"
+  "Or specify files"
+  color: "#f5f5f5"
+}
+
+W2Step3: "3. Pandoc Conversion" {
+  "Markdown → HTML"
+  "Markdown → DOCX"
+  "Re-link images"
+  color: "#e8e8f8"
+}
+
+W2Step4: "4. Accessibility Check" {
+  "Re-validate WCAG"
+  "New metrics"
+  color: "#f8e8e8"
+}
+
+W2Step5: "5. Update Reports" {
+  "Regenerate dashboard"
+  "Update detail pages"
+  color: "#f0e8f8"
+}
+
+W2Output: "OUTPUTS (Updated):" {
+  "✓ output/html/*.html (new)"
+  "✓ output/docx/*.docx (new)"
+  "✓ output/reports/*.html (new)"
+  color: "#e8f8e8"
+}
+
+// WORKFLOW 3: BATCH PROCESSING
+
+Workflow3Title: "WORKFLOW 3: Batch Process Multiple Pages"
+
+W3Step1: "1. Input: URLS.txt" {
+  "One URL per line"
+  "Example: https://wiki.com/doku.php?id=page:name"
+  shape: "queue"
+}
+
+W3Step2: "2. Run Batch Script" {
+  "python convert_from_file_list.py"
+  color: "#f5f5f5"
+}
+
+W3Step3: "3. Loop: Workflow 1 (each page)" {
+  "Scrape → Parse → Markdown"
+  "→ Convert → Check"
+  color: "#f0f0f0"
+}
+
+W3Step4: "4. Accumulate Results" {
+  "Track all pages"
+  "Combine statistics"
+  color: "#f5f5f5"
+}
+
+W3Step5: "5. Generate Combined Report" {
+  "Single dashboard"
+  "All pages compared"
+  "Summary statistics"
+  color: "#f0e8f8"
+}
+
+W3Output: "OUTPUTS:" {
+  "✓ 13+ pages converted"
+  "✓ 50+ images processed"
+  "✓ 1 combined dashboard"
+  "✓ 13+ detail reports"
+  "✓ Full output structure"
+  color: "#e8f8e8"
+}
+
+// Connections - Workflow 1
+Workflow1Title -> W1Step1
+W1Step1 -> W1Step2
+W1Step2 -> W1Step3
+W1Step3 -> W1Step4
+W1Step4 -> W1Step5
+W1Step5 -> W1Step6
+W1Step6 -> W1Step7
+W1Step7 -> W1Step8
+W1Step8 -> W1Output
+
+// Connections - Workflow 2
+Workflow2Title -> W2Step1
+W2Step1 -> W2Step2
+W2Step2 -> W2Step3
+W2Step3 -> W2Step4
+W2Step4 -> W2Step5
+W2Step5 -> W2Output
+
+// Connections - Workflow 3
+Workflow3Title -> W3Step1
+W3Step1 -> W3Step2
+W3Step2 -> W3Step3
+W3Step3 -> W3Step4
+W3Step4 -> W3Step5
+W3Step5 -> W3Output
+
+// Vertical spacing
+W1Output -> Workflow2Title: ""
+W2Output -> Workflow3Title: ""

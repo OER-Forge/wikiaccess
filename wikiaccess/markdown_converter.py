@@ -16,6 +16,7 @@ https://github.com/yourusername/wikiaccess
 
 import subprocess
 import shutil
+import urllib.request
 from pathlib import Path
 from typing import Optional, Tuple, Dict
 from .scraper import DokuWikiHTTPClient
@@ -29,19 +30,47 @@ class MarkdownConverter:
         self.client = client
         self.parser = DokuWikiParser()
         self.output_dir = Path(output_dir) if output_dir else Path('output')
+        self.markdown_dir = self.output_dir / 'markdown'
         self.images_dir = self.output_dir / 'images'
+        self.html_dir = self.output_dir / 'html'
+        self.docx_dir = self.output_dir / 'docx'
+        self.reports_dir = self.output_dir / 'reports'
         self.current_page_id = None
         self.image_count = 0
         self.image_success = 0
         self.image_failed = 0
         
+        # Create all directories
+        for dir_path in [self.markdown_dir, self.images_dir, self.html_dir, self.docx_dir, self.reports_dir]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+        
         # Check if pandoc is installed
         if not shutil.which('pandoc'):
             raise RuntimeError("Pandoc is not installed. Install it with: brew install pandoc (macOS) or apt-get install pandoc (Linux)")
     
+    
     def convert_url(self, url: str, document_title: Optional[str] = None) -> Tuple[str, str, Dict]:
         """
         Convert DokuWiki URL to Markdown, then to HTML and DOCX
+        
+        Creates flat folder structure:
+            output/
+            ├── markdown/
+            │   ├── page1.md
+            │   └── page2.md
+            ├── images/
+            │   ├── page1_image1.png
+            │   ├── page2_image1.jpg
+            │   └── youtube_[video_id].jpg
+            ├── html/
+            │   ├── page1.html
+            │   └── page2.html
+            ├── docx/
+            │   ├── page1.docx
+            │   └── page2.docx
+            └── reports/
+                ├── accessibility_report.html
+                └── page1_accessibility.html
         
         Returns:
             Tuple of (html_path, docx_path, stats_dict)
@@ -62,26 +91,21 @@ class MarkdownConverter:
         if document_title is None:
             document_title = page_id.replace('_', ' ').replace(':', ' - ').title()
         
-        # Create output directories
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.images_dir.mkdir(parents=True, exist_ok=True)
-        
         # Convert DokuWiki to Markdown
         markdown = self._convert_to_markdown(content, document_title)
         
         # Save markdown
-        md_path = self.output_dir / f"{page_id.replace(':', '_')}.md"
+        page_name = page_id.replace(':', '_')
+        md_path = self.markdown_dir / f"{page_name}.md"
         md_path.write_text(markdown, encoding='utf-8')
         print(f"✓ Markdown generated: {md_path}")
         
         # Convert Markdown to HTML
-        html_path = self.output_dir / 'html' / f"{page_id.replace(':', '_')}.html"
-        html_path.parent.mkdir(parents=True, exist_ok=True)
+        html_path = self.html_dir / f"{page_name}.html"
         self._pandoc_convert(str(md_path), str(html_path), 'html')
         
         # Convert Markdown to DOCX
-        docx_path = self.output_dir / 'docx' / f"{page_id.replace(':', '_')}.docx"
-        docx_path.parent.mkdir(parents=True, exist_ok=True)
+        docx_path = self.docx_dir / f"{page_name}.docx"
         self._pandoc_convert(str(md_path), str(docx_path), 'docx')
         
         stats = {
@@ -199,10 +223,35 @@ class MarkdownConverter:
         image_path = parsed['path']
         width = parsed.get('width')
         
-        # Check for YouTube videos
+        # Check for YouTube videos - download thumbnail and create link
         if 'youtube>' in image_path:
             video_id = image_path.replace('youtube>', '').split('?')[0].strip()
-            return f"![Video: {video_id}](https://www.youtube.com/watch?v={video_id})\n"
+            thumb_filename = f"youtube_{video_id}.jpg"
+            thumb_path = self.images_dir / thumb_filename
+            
+            # Download thumbnail if not already present
+            if not thumb_path.exists():
+                try:
+                    thumb_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+                    urllib.request.urlretrieve(thumb_url, str(thumb_path))
+                    self.image_success += 1
+                    print(f"✓ Downloaded YouTube thumbnail: {thumb_filename}")
+                except Exception as e:
+                    print(f"  ⚠ Failed to download YouTube thumbnail {video_id}: {e}")
+                    # Fallback to lower resolution if maxresdefault fails
+                    try:
+                        thumb_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+                        urllib.request.urlretrieve(thumb_url, str(thumb_path))
+                        self.image_success += 1
+                    except Exception as e2:
+                        self.image_failed += 1
+                        return f"[Video: {video_id}](https://www.youtube.com/watch?v={video_id})\n"
+            else:
+                self.image_success += 1
+            
+            self.image_count += 1
+            # Return Markdown with thumbnail that links to video
+            return f"[![Video: {video_id}](images/{thumb_filename})](https://www.youtube.com/watch?v={video_id})\n"
         
         # Skip URL embeds
         if 'url>' in image_path or image_path.startswith('http'):
@@ -238,7 +287,7 @@ class MarkdownConverter:
                 if not alt_text:
                     alt_text = filename.replace('_', ' ').replace('-', ' ').rsplit('.', 1)[0]
                 
-                # Return Markdown image reference
+                # Return Markdown image reference - Pandoc will resolve via resource-path
                 return f"![{alt_text}](images/{filename})\n"
             else:
                 self.image_failed += 1
@@ -261,7 +310,7 @@ class MarkdownConverter:
         """
         try:
             if format_type == 'html':
-                # HTML with embedded CSS for accessibility
+                # HTML with embedded CSS for accessibility and image resource path
                 cmd = [
                     'pandoc',
                     md_path,
@@ -269,9 +318,10 @@ class MarkdownConverter:
                     '--from', 'markdown',
                     '--to', 'html5',
                     '--standalone',
-                    '--css', '-',  # Will add CSS below
+                    '--mathjax',
                     '--metadata', 'title=WikiAccess',
-                    '--variable', 'lang=en'
+                    '--variable', 'lang=en',
+                    '--resource-path', str(self.output_dir)
                 ]
                 subprocess.run(cmd, check=True, capture_output=True)
                 
@@ -279,14 +329,15 @@ class MarkdownConverter:
                 self._enhance_html_accessibility(output_path)
                 
             elif format_type == 'docx':
-                # DOCX with language metadata
+                # DOCX with image resource path and language metadata
                 cmd = [
                     'pandoc',
                     md_path,
                     '-o', output_path,
                     '--from', 'markdown',
                     '--to', 'docx',
-                    '--metadata', 'lang=en'
+                    '--metadata', 'lang=en',
+                    '--resource-path', str(self.output_dir)
                 ]
                 subprocess.run(cmd, check=True, capture_output=True)
             
@@ -300,11 +351,17 @@ class MarkdownConverter:
             raise
     
     def _enhance_html_accessibility(self, html_path: str):
-        """Add accessibility CSS to generated HTML"""
+        """Add accessibility CSS, MathJax, and fix image paths for generated HTML"""
         html_content = Path(html_path).read_text(encoding='utf-8')
         
-        # Insert CSS before closing </head>
-        css = """
+        # Fix image paths - change "images/file.png" to "../images/file.png"
+        # since HTML is in html/ folder and images are in images/ folder
+        html_content = html_content.replace('src="images/', 'src="../images/')
+        
+        # Insert MathJax and CSS before closing </head>
+        mathjax_and_css = """
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -396,5 +453,5 @@ class MarkdownConverter:
 """
         
         if '</head>' in html_content:
-            html_content = html_content.replace('</head>', css + '</head>')
+            html_content = html_content.replace('</head>', mathjax_and_css + '</head>')
             Path(html_path).write_text(html_content, encoding='utf-8')

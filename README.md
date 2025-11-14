@@ -188,16 +188,20 @@ wikiaccess/
 
 ## 📚 Documentation
 
-- **[QUICKSTART.md](QUICKSTART.md)** - Get started in 5 minutes
-- **[USAGE.md](USAGE.md)** - Detailed usage examples and API reference
-- **[ACCESSIBILITY.md](ACCESSIBILITY.md)** - WCAG compliance and testing guide
-- **[OMML_IMPLEMENTATION.md](OMML_IMPLEMENTATION.md)** - Technical details on equation conversion
+### Quick Start
+- **[QUICKSTART.md](docs/QUICKSTART.md)** - Get started in 5 minutes with installation and examples
 
-## Documentation
+### Comprehensive Documentation (docs/ folder)
+- **[docs/README.md](docs/README.md)** - Complete documentation overview and navigation  
+- **[docs/MODULE_DOCUMENTATION.md](docs/MODULE_DOCUMENTATION.md)** - Full API reference and module details
+- **[docs/ACCESSIBILITY_SCORING.md](docs/ACCESSIBILITY_SCORING.md)** - How WCAG 2.1 scores are calculated
+- **[docs/ARCHITECTURE.png](docs/ARCHITECTURE.png)** - System architecture diagram
+- **[docs/WORKFLOWS.png](docs/WORKFLOWS.png)** - Conversion workflow diagrams  
+- **[docs/DATA_FLOW.png](docs/DATA_FLOW.png)** - Data transformation flow
 
-- **[QUICKSTART.md](QUICKSTART.md)** - Get started in 5 minutes
-- **[USAGE.md](USAGE.md)** - Detailed usage examples
-- **[ACCESSIBILITY.md](ACCESSIBILITY.md)** - Accessibility features and compliance
+### Legacy Documentation
+- **[USAGE.md](USAGE.md)** - Detailed usage examples (legacy)
+- **[ACCESSIBILITY.md](ACCESSIBILITY.md)** - WCAG compliance guide (legacy)
 - **[OMML_IMPLEMENTATION.md](OMML_IMPLEMENTATION.md)** - How equation conversion works
 
 ## Supported DokuWiki Syntax

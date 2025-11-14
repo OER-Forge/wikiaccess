@@ -29,6 +29,20 @@ def convert_wiki_page(
     """
     Convert a single DokuWiki page to accessible documents via Markdown.
     
+    Output structure:
+        output/
+        ├── markdown/
+        │   └── page_name.md
+        ├── images/
+        │   └── [downloaded images + YouTube thumbnails]
+        ├── html/
+        │   └── page_name.html
+        ├── docx/
+        │   └── page_name.docx
+        └── reports/
+            ├── accessibility_report.html
+            └── page_name_accessibility.html
+    
     Args:
         wiki_url: Base URL of the DokuWiki site
         page_name: Name of the wiki page to convert
@@ -84,10 +98,13 @@ def convert_wiki_page(
         
         results['accessibility'] = accessibility_results
         
-        # Generate accessibility report
+        # Generate accessibility report in shared reports folder
         if accessibility_results:
-            reporter = ReportGenerator(str(output_path))
             page_display_name = page_name.replace(':', '_')
+            reports_dir = output_path / 'reports'
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            
+            reporter = ReportGenerator(str(reports_dir))
             
             html_report = accessibility_results.get('html', {})
             docx_report = accessibility_results.get('docx', {})
@@ -116,6 +133,26 @@ def convert_multiple_pages(
     """
     Convert multiple DokuWiki pages to accessible documents.
     
+    Output structure:
+        output/
+        ├── markdown/
+        │   ├── page1.md
+        │   └── page2.md
+        ├── images/
+        │   ├── page1_img.png
+        │   ├── page2_img.jpg
+        │   └── youtube_[id].jpg
+        ├── html/
+        │   ├── page1.html
+        │   └── page2.html
+        ├── docx/
+        │   ├── page1.docx
+        │   └── page2.docx
+        └── reports/
+            ├── accessibility_report.html (combined)
+            ├── page1_accessibility.html
+            └── page2_accessibility.html
+    
     Args:
         wiki_url: Base URL of the DokuWiki site
         page_names: List of page names to convert
@@ -140,7 +177,8 @@ def convert_multiple_pages(
     converter = MarkdownConverter(client, output_dir)
     
     page_results = {}
-    reporter = ReportGenerator(str(output_path)) if check_accessibility else None
+    # Create separate reporter for combined report (if multiple pages)
+    combined_reporter = ReportGenerator(str(output_path / 'reports')) if check_accessibility else None
     
     for page_name in page_names:
         print(f"\n{'='*70}\nPage: {page_name}\n{'='*70}")
@@ -169,15 +207,16 @@ def convert_multiple_pages(
                 
                 results['accessibility'] = accessibility_results
                 
-                # Add to reporter
-                page_display_name = page_name.replace(':', '_')
-                reporter.add_page_reports(
-                    page_display_name,
-                    accessibility_results.get('html', {}),
-                    accessibility_results.get('docx', {}),
-                    stats,
-                    stats
-                )
+                # Add to combined reporter
+                if combined_reporter:
+                    page_display_name = page_name.replace(':', '_')
+                    combined_reporter.add_page_reports(
+                        page_display_name,
+                        accessibility_results.get('html', {}),
+                        accessibility_results.get('docx', {}),
+                        stats,
+                        stats
+                    )
             
             page_results[page_name] = results
             print(f"✓ Successfully converted: {page_name}")
@@ -186,11 +225,11 @@ def convert_multiple_pages(
             page_results[page_name] = {'error': str(e)}
             print(f"✗ Failed to convert {page_name}: {e}")
     
-    # Generate combined reports
-    if check_accessibility and reporter:
+    # Generate combined report
+    if check_accessibility and combined_reporter:
         print(f"\n{'='*70}\nGenerating Combined Accessibility Report\n{'='*70}")
-        reporter.generate_detailed_reports()
-        dashboard = reporter.generate_dashboard()
-        print(f"\n📊 Dashboard: {dashboard}")
+        combined_reporter.generate_detailed_reports()
+        dashboard = combined_reporter.generate_dashboard()
+        print(f"\n📊 Combined Dashboard: {dashboard}")
     
     return page_results
