@@ -1,0 +1,13 @@
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:scalars_and_vectors
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:displacement_and_velocity
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:modeling_with_vpython
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:relative_motion
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:graphing_motion
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:momentum
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:momentum_principle
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:acceleration
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:motionpredict
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:constantf
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:localg
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:iterativepredict
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:drag

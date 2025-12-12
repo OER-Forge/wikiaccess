@@ -17,6 +17,7 @@ from .scraper import DokuWikiHTTPClient
 from .markdown_converter import MarkdownConverter
 from .accessibility import AccessibilityChecker
 from .reporting import ReportGenerator
+from .image_reporting import ImageReportGenerator
 
 
 def convert_wiki_page(
@@ -87,28 +88,28 @@ def convert_wiki_page(
     if check_accessibility:
         checker = AccessibilityChecker()
         accessibility_results = {}
-        
+
         if html_path:
             html_accessibility = checker.check_html(html_path)
             accessibility_results['html'] = html_accessibility
-        
+
         if docx_path:
             docx_accessibility = checker.check_docx(docx_path)
             accessibility_results['docx'] = docx_accessibility
-        
+
         results['accessibility'] = accessibility_results
-        
+
         # Generate accessibility report in shared reports folder
         if accessibility_results:
             page_display_name = page_name.replace(':', '_')
             reports_dir = output_path / 'reports'
             reports_dir.mkdir(parents=True, exist_ok=True)
-            
+
             reporter = ReportGenerator(str(reports_dir))
-            
+
             html_report = accessibility_results.get('html', {})
             docx_report = accessibility_results.get('docx', {})
-            
+
             reporter.add_page_reports(
                 page_display_name,
                 html_report,
@@ -119,7 +120,17 @@ def convert_wiki_page(
             reporter.generate_detailed_reports()
             dashboard_path = reporter.generate_dashboard()
             results['accessibility_report'] = dashboard_path
-    
+
+    # Generate image report if images were processed
+    if converter.image_details:
+        reports_dir = output_path / 'reports'
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        image_reporter = ImageReportGenerator(str(output_dir))
+        image_report_path = image_reporter.generate_image_report(converter.image_details)
+        results['image_report'] = image_report_path
+        print(f"\n📸 Image Report: {image_report_path}")
+
     return results
 
 
@@ -231,5 +242,12 @@ def convert_multiple_pages(
         combined_reporter.generate_detailed_reports()
         dashboard = combined_reporter.generate_dashboard()
         print(f"\n📊 Combined Dashboard: {dashboard}")
-    
+
+    # Generate image report if images were processed
+    if converter.image_details:
+        print(f"\n{'='*70}\nGenerating Image Report\n{'='*70}")
+        image_reporter = ImageReportGenerator(str(output_dir))
+        image_report_path = image_reporter.generate_image_report(converter.image_details)
+        print(f"\n📸 Image Report: {image_report_path}")
+
     return page_results
