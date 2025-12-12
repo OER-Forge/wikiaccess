@@ -18,6 +18,7 @@ from .markdown_converter import MarkdownConverter
 from .accessibility import AccessibilityChecker
 from .reporting import ReportGenerator
 from .image_reporting import ImageReportGenerator
+from .hub_reporting import HubReportGenerator
 
 
 def convert_wiki_page(
@@ -130,6 +131,24 @@ def convert_wiki_page(
         image_report_path = image_reporter.generate_image_report(converter.image_details)
         results['image_report'] = image_report_path
         print(f"\n📸 Image Report: {image_report_path}")
+
+    # Generate landing hub (index.html) if we have reports
+    if check_accessibility and results.get('accessibility'):
+        hub_generator = HubReportGenerator(str(output_dir))
+        page_display_name = page_name.replace(':', '_')
+
+        # Prepare page_reports dict for hub generator
+        page_reports = {
+            page_display_name: {
+                'html': results['accessibility'].get('html', {}),
+                'docx': results['accessibility'].get('docx', {}),
+                'html_stats': results.get('html', {}).get('stats', {}),
+                'docx_stats': results.get('docx', {}).get('stats', {})
+            }
+        }
+
+        hub_path = hub_generator.generate_hub(page_reports, converter.image_details)
+        results['hub_report'] = hub_path
 
     return results
 
@@ -249,5 +268,26 @@ def convert_multiple_pages(
         image_reporter = ImageReportGenerator(str(output_dir))
         image_report_path = image_reporter.generate_image_report(converter.image_details)
         print(f"\n📸 Image Report: {image_report_path}")
+
+    # Generate landing hub (index.html) if we have reports
+    if check_accessibility and combined_reporter:
+        print(f"\n{'='*70}\nGenerating Landing Hub\n{'='*70}")
+        hub_generator = HubReportGenerator(str(output_dir))
+
+        # Prepare page_reports dict for hub generator
+        page_reports = {}
+        for page_name, results in page_results.items():
+            if 'accessibility' in results:
+                page_display_name = page_name.replace(':', '_')
+                page_reports[page_display_name] = {
+                    'html': results['accessibility'].get('html', {}),
+                    'docx': results['accessibility'].get('docx', {}),
+                    'html_stats': results.get('html', {}).get('stats', {}),
+                    'docx_stats': results.get('docx', {}).get('stats', {})
+                }
+
+        if page_reports:
+            hub_path = hub_generator.generate_hub(page_reports, converter.image_details)
+            print(f"\n🏠 Landing Hub: {hub_path}")
 
     return page_results

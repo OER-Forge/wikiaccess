@@ -48,6 +48,28 @@ class ImageReportGenerator:
         print(f"\n📸 Image Report: {report_path}")
         return str(report_path)
 
+    def _classify_alt_text(self, img: Dict) -> str:
+        """
+        Classify alt-text quality for an image
+        Returns: 'missing', 'auto-generated', or 'manual'
+        """
+        alt_text = img.get('alt_text', '')
+        filename = img.get('local_filename', '')
+
+        if not alt_text or alt_text.strip() == '':
+            return 'missing'
+
+        # Check if alt-text is auto-generated from filename
+        # Auto-generated alt-text is typically: filename without extension, with underscores/hyphens replaced by spaces
+        if filename:
+            # Generate what the auto-generated alt-text would be
+            auto_generated = filename.replace('_', ' ').replace('-', ' ').rsplit('.', 1)[0]
+            if alt_text.strip().lower() == auto_generated.strip().lower():
+                return 'auto-generated'
+
+        # Otherwise, it's manually provided
+        return 'manual'
+
     def _build_image_report_html(self, image_details: List[Dict]) -> str:
         """Build the complete image report HTML"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -57,6 +79,17 @@ class ImageReportGenerator:
         successful = len([img for img in image_details if img['status'] in ['success', 'cached']])
         failed = len([img for img in image_details if img['status'] in ['failed', 'error']])
         skipped = len([img for img in image_details if img['status'] == 'skipped'])
+
+        # Classify alt-text quality for all images
+        for img in image_details:
+            img['alt_text_quality'] = self._classify_alt_text(img)
+
+        # Count alt-text quality
+        alt_text_stats = {
+            'missing': len([img for img in image_details if img['alt_text_quality'] == 'missing']),
+            'auto_generated': len([img for img in image_details if img['alt_text_quality'] == 'auto-generated']),
+            'manual': len([img for img in image_details if img['alt_text_quality'] == 'manual'])
+        }
 
         # Group by type
         by_type = {}
@@ -77,7 +110,7 @@ class ImageReportGenerator:
         # Build statistics dashboard
         stats_html = self._build_statistics_dashboard(
             total_images, successful, failed, skipped,
-            by_type, by_page, total_size_mb
+            by_type, by_page, total_size_mb, alt_text_stats
         )
 
         # Build sortable table
@@ -113,6 +146,14 @@ class ImageReportGenerator:
                 <option value="skipped">Skipped</option>
             </select>
 
+            <label for="filter-alt-quality">Filter by Alt-Text:</label>
+            <select id="filter-alt-quality" onchange="filterTable()" aria-label="Filter images by alt-text quality">
+                <option value="all">All</option>
+                <option value="missing">⚠️ Missing</option>
+                <option value="auto-generated">🤖 Auto-generated</option>
+                <option value="manual">✓ Manual</option>
+            </select>
+
             <label for="filter-page">Filter by Page:</label>
             <select id="filter-page" onchange="filterTable()" aria-label="Filter images by page">
                 <option value="all">All Pages</option>
@@ -129,7 +170,7 @@ class ImageReportGenerator:
         return html
 
     def _build_statistics_dashboard(self, total, success, failed, skipped,
-                                    by_type, by_page, total_size_mb) -> str:
+                                    by_type, by_page, total_size_mb, alt_text_stats) -> str:
         """Build statistics dashboard HTML"""
         success_rate = int((success / total * 100)) if total > 0 else 0
 
@@ -170,6 +211,15 @@ class ImageReportGenerator:
 
         <div class="breakdown">
             <div class="breakdown-section">
+                <h3>Alt-Text Quality</h3>
+                <ul>
+                    <li class="alt-missing"><strong>Missing:</strong> {alt_text_stats['missing']} ⚠️</li>
+                    <li class="alt-auto"><strong>Auto-generated:</strong> {alt_text_stats['auto_generated']}</li>
+                    <li class="alt-manual"><strong>Manual:</strong> {alt_text_stats['manual']} ✓</li>
+                </ul>
+            </div>
+
+            <div class="breakdown-section">
                 <h3>By Type</h3>
                 <ul>
                     {"".join(f'<li><strong>{img_type}:</strong> {count}</li>' for img_type, count in sorted(by_type.items()))}
@@ -186,6 +236,15 @@ class ImageReportGenerator:
         </div>
     </section>'''
 
+    def _get_alt_text_badge(self, quality: str, alt_text: str) -> str:
+        """Generate HTML badge for alt-text quality"""
+        if quality == 'missing':
+            return '<span class="alt-badge alt-badge-missing" title="No alt-text provided">⚠️ Missing</span>'
+        elif quality == 'auto-generated':
+            return f'<span class="alt-badge alt-badge-auto" title="Auto-generated from filename: {alt_text}">🤖 Auto</span>'
+        else:  # manual
+            return f'<span class="alt-badge alt-badge-manual" title="Manual alt-text: {alt_text}">✓ Manual</span>'
+
     def _build_sortable_table(self, image_details: List[Dict]) -> str:
         """Build sortable HTML table with image details"""
         rows = []
@@ -193,17 +252,19 @@ class ImageReportGenerator:
             status_class = f"status-{img['status']}"
             thumbnail = self._get_thumbnail_html(img)
             file_size_str = self._format_file_size(img['file_size'])
+            alt_text_badge = self._get_alt_text_badge(img['alt_text_quality'], img.get('alt_text', ''))
 
             error_display = f'<span class="error-msg" title="{img["error_message"]}">{img["error_message"][:50]}...</span>' if img['error_message'] else ''
 
             rows.append(f'''
-                <tr class="image-row" data-status="{img['status']}" data-page="{img['page_id']}">
+                <tr class="image-row" data-status="{img['status']}" data-page="{img['page_id']}" data-alt-quality="{img['alt_text_quality']}">
                     <td>{idx + 1}</td>
                     <td class="thumbnail-cell">{thumbnail}</td>
                     <td class="page-cell">{img['page_id']}</td>
                     <td class="type-cell">{img['type']}</td>
                     <td class="filename-cell" title="{img['local_filename'] or 'N/A'}">{img['local_filename'] or 'N/A'}</td>
                     <td class="status-cell"><span class="{status_class}">{img['status'].upper()}</span></td>
+                    <td class="alt-text-cell">{alt_text_badge}</td>
                     <td class="size-cell" data-size="{img['file_size'] or 0}">{file_size_str}</td>
                     <td class="dimensions-cell">{img['dimensions'] or 'N/A'}</td>
                     <td class="timestamp-cell">{img['timestamp'][:19]}</td>
@@ -221,9 +282,10 @@ class ImageReportGenerator:
                         <th onclick="sortTable(3)" role="button" tabindex="0">Type ▲▼</th>
                         <th onclick="sortTable(4)" role="button" tabindex="0">Filename ▲▼</th>
                         <th onclick="sortTable(5)" role="button" tabindex="0">Status ▲▼</th>
-                        <th onclick="sortTable(6)" role="button" tabindex="0">Size ▲▼</th>
-                        <th onclick="sortTable(7)" role="button" tabindex="0">Dimensions ▲▼</th>
-                        <th onclick="sortTable(8)" role="button" tabindex="0">Timestamp ▲▼</th>
+                        <th onclick="sortTable(6)" role="button" tabindex="0">Alt-Text ▲▼</th>
+                        <th onclick="sortTable(7)" role="button" tabindex="0">Size ▲▼</th>
+                        <th onclick="sortTable(8)" role="button" tabindex="0">Dimensions ▲▼</th>
+                        <th onclick="sortTable(9)" role="button" tabindex="0">Timestamp ▲▼</th>
                         <th>Error</th>
                     </tr>
                 </thead>
@@ -508,6 +570,46 @@ class ImageReportGenerator:
             font-size: 0.85em;
         }
 
+        /* Alt-text quality badges */
+        .alt-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+
+        .alt-badge-missing {
+            background: #dc3545;
+            color: white;
+        }
+
+        .alt-badge-auto {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .alt-badge-manual {
+            background: #28a745;
+            color: white;
+        }
+
+        /* Alt-text quality in breakdown section */
+        .alt-missing {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .alt-auto {
+            color: #cc8800;
+        }
+
+        .alt-manual {
+            color: #28a745;
+            font-weight: 600;
+        }
+
         /* Error messages */
         .error-msg {
             color: #dc3545;
@@ -555,8 +657,8 @@ class ImageReportGenerator:
                 let aValue = a.cells[columnIndex].textContent.trim();
                 let bValue = b.cells[columnIndex].textContent.trim();
 
-                // Special handling for size column (use data attribute)
-                if (columnIndex === 6) {
+                // Special handling for size column (use data attribute) - column index 7
+                if (columnIndex === 7) {
                     aValue = parseInt(a.cells[columnIndex].dataset.size) || 0;
                     bValue = parseInt(b.cells[columnIndex].dataset.size) || 0;
                     return sortDirection * (aValue - bValue);
@@ -574,16 +676,19 @@ class ImageReportGenerator:
         function filterTable() {
             const statusFilter = document.getElementById('filter-status').value;
             const pageFilter = document.getElementById('filter-page').value;
+            const altQualityFilter = document.getElementById('filter-alt-quality').value;
             const rows = document.querySelectorAll('.image-row');
 
             rows.forEach(row => {
                 const status = row.dataset.status;
                 const page = row.dataset.page;
+                const altQuality = row.dataset.altQuality;
 
                 const statusMatch = statusFilter === 'all' || status === statusFilter;
                 const pageMatch = pageFilter === 'all' || page === pageFilter;
+                const altQualityMatch = altQualityFilter === 'all' || altQuality === altQualityFilter;
 
-                row.style.display = (statusMatch && pageMatch) ? '' : 'none';
+                row.style.display = (statusMatch && pageMatch && altQualityMatch) ? '' : 'none';
             });
         }
 
