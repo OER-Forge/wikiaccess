@@ -666,8 +666,15 @@ class MarkdownConverter:
 
         // Initialize on page load
         init: function() {
-          // Load saved preferences or use defaults
-          this.theme = localStorage.getItem('wikiAccessTheme') || this.defaults.theme;
+          // Load saved preferences or detect system preference
+          const savedTheme = localStorage.getItem('wikiAccessTheme');
+          if (savedTheme) {
+            this.theme = savedTheme;
+          } else {
+            // Detect system dark mode preference
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            this.theme = prefersDark ? 'dark' : 'light';
+          }
           this.fontSize = parseInt(localStorage.getItem('wikiAccessFontSize')) || this.defaults.fontSize;
           this.lineHeight = parseFloat(localStorage.getItem('wikiAccessLineHeight')) || this.defaults.lineHeight;
           this.letterSpacing = parseInt(localStorage.getItem('wikiAccessLetterSpacing')) || this.defaults.letterSpacing;
