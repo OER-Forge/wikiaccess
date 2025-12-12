@@ -16,6 +16,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
 import json
+from .report_components import get_navigation_sidebar, get_sidebar_css, get_sidebar_javascript, get_jump_to_section_links, get_jump_nav_css
 
 
 class HubReportGenerator:
@@ -188,6 +189,18 @@ class HubReportGenerator:
         """Build complete landing hub HTML"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+        # Build navigation sidebar
+        page_list = list(page_reports.keys())
+        sidebar_html = get_navigation_sidebar('hub', page_list)
+
+        # Build jump-to-section links
+        sections = [
+            {'id': 'critical-issues', 'title': '🚨 Critical Issues'},
+            {'id': 'statistics', 'title': '📊 Statistics'},
+            {'id': 'navigation', 'title': '📑 Reports'}
+        ]
+        jump_html = get_jump_to_section_links(sections)
+
         # Build critical issues HTML
         critical_html = self._build_critical_issues_section(critical_issues)
 
@@ -203,21 +216,38 @@ class HubReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WikiAccess - Accessibility Report Hub</title>
+    {get_sidebar_css()}
+    {get_jump_nav_css()}
     {self._get_hub_css()}
 </head>
-<body>
-    <header>
-        <h1>♿ WikiAccess Report Hub</h1>
-        <p class="timestamp">Generated: {timestamp}</p>
-        <p class="subtitle">Comprehensive accessibility analysis and reporting</p>
-    </header>
+<body class="has-sidebar">
+    {sidebar_html}
 
-    {critical_html}
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
 
-    {stats_html}
+    <div class="main-content">
+        <header>
+            <h1>✓ WikiAccess Report Hub</h1>
+            <p class="timestamp">Generated: {timestamp}</p>
+            <p class="subtitle">Comprehensive accessibility analysis and reporting</p>
+        </header>
 
-    {nav_html}
+        {jump_html}
 
+        <div id="critical-issues">
+            {critical_html}
+        </div>
+
+        <div id="statistics">
+            {stats_html}
+        </div>
+
+        <div id="navigation">
+            {nav_html}
+        </div>
+    </div>
+
+    {get_sidebar_javascript()}
     {self._get_hub_javascript()}
 </body>
 </html>'''
@@ -444,7 +474,7 @@ class HubReportGenerator:
         <h2>📑 Detailed Reports</h2>
         <div class="tiles-grid">
             <a href="accessibility_report.html" class="nav-tile">
-                <div class="tile-icon">♿</div>
+                <div class="tile-icon">✓</div>
                 <h3>Accessibility Dashboard</h3>
                 <p>WCAG compliance scores and issues for all pages</p>
             </a>
@@ -479,11 +509,14 @@ class HubReportGenerator:
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             font-size: 16px;
             line-height: 1.6;
+            color: #1a1a1a;
+            background: #f5f5f5;
+        }
+
+        .main-content {
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
-            color: #1a1a1a;
-            background: #f5f5f5;
         }
 
         header {

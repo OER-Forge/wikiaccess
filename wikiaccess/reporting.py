@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
+from .report_components import get_navigation_sidebar, get_sidebar_css, get_sidebar_javascript
 
 
 class ReportGenerator:
@@ -70,6 +71,10 @@ class ReportGenerator:
     def _build_dashboard_html(self) -> str:
         """Build dashboard HTML"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Build navigation sidebar
+        page_list = list(self.page_reports.keys())
+        sidebar_html = get_navigation_sidebar('accessibility', page_list)
         
         # Calculate overall stats
         total_pages = len(self.page_reports)
@@ -142,22 +147,26 @@ class ReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accessibility Compliance Dashboard</title>
+    {get_sidebar_css()}
     <style>
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
-        
+
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             font-size: 16px;
             line-height: 1.6;
+            color: #1a1a1a;
+            background: #f5f5f5;
+        }}
+
+        .main-content {{
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
-            color: #1a1a1a;
-            background: #f5f5f5;
         }}
         
         header {{
@@ -251,11 +260,16 @@ class ReportGenerator:
         }}
     </style>
 </head>
-<body>
-    <header>
-        <h1>♿ Accessibility Compliance Dashboard</h1>
-        <p class="timestamp">Generated: {timestamp}</p>
-    </header>
+<body class="has-sidebar">
+    {sidebar_html}
+
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
+
+    <div class="main-content">
+        <header>
+            <h1>✓ Accessibility Compliance Dashboard</h1>
+            <p class="timestamp">Generated: {timestamp}</p>
+        </header>
     
     <div class="summary">
         <div class="stat-card">
@@ -315,13 +329,20 @@ class ReportGenerator:
     <footer>
         <p>WCAG 2.1 Accessibility Compliance Report | <a href="https://www.w3.org/WAI/WCAG21/quickref/">WCAG Quick Reference</a></p>
     </footer>
+    </div>
+
+    {get_sidebar_javascript()}
 </body>
 </html>'''
     
-    def _build_combined_detail_html(self, page_name: str, html_report: Dict, docx_report: Dict, 
+    def _build_combined_detail_html(self, page_name: str, html_report: Dict, docx_report: Dict,
                                     html_stats: Optional[Dict] = None, docx_stats: Optional[Dict] = None) -> str:
         """Build combined detailed report HTML for both HTML and DOCX"""
-        
+
+        # Build navigation sidebar
+        page_list = list(self.page_reports.keys())
+        sidebar_html = get_navigation_sidebar('page_detail', page_list)
+
         html_stats = html_stats or {}
         docx_stats = docx_stats or {}
         
@@ -353,22 +374,26 @@ class ReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accessibility Report: {html_lib.escape(page_name)}</title>
+    {get_sidebar_css()}
     <style>
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
-        
+
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             font-size: 16px;
             line-height: 1.6;
+            color: #1a1a1a;
+            background: #f5f5f5;
+        }}
+
+        .main-content {{
             max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
-            color: #1a1a1a;
-            background: #f5f5f5;
         }}
         
         header {{
@@ -486,17 +511,23 @@ class ReportGenerator:
         }}
     </style>
 </head>
-<body>
-    <a href="accessibility_report.html" class="back-link">← Back to Dashboard</a>
-    
-    <div class="file-links">
-        <a href="../html/{page_name}.html" target="_blank">📄 View HTML Version</a>
-        <a href="../docx/{page_name}.docx" target="_blank">📄 Download DOCX Version</a>
-    </div>
-    
-    <header>
-        <h1>{html_lib.escape(page_name)}</h1>
-    </header>
+<body class="has-sidebar">
+    {sidebar_html}
+
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
+
+    <div class="main-content">
+        <a href="accessibility_report.html" class="back-link">← Back to Dashboard</a>
+
+        <div class="file-links">
+            <a href="../html/{page_name}.html" target="_blank">📄 View HTML Version</a>
+            <a href="../docx/{page_name}.docx" target="_blank">📄 Download DOCX Version</a>
+            <a href="../markdown/{page_name}.md" target="_blank">📝 View Markdown Source</a>
+        </div>
+
+        <header>
+            <h1>{html_lib.escape(page_name)}</h1>
+        </header>
     
     <div class="format-sections">
         <!-- HTML Report -->
@@ -541,6 +572,9 @@ class ReportGenerator:
             {self._build_format_issues("Warnings", docx_warnings_html, docx_report['warnings'])}
         </div>
     </div>
+    </div>
+
+    {get_sidebar_javascript()}
 </body>
 </html>'''
     
