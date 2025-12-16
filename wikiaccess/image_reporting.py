@@ -18,7 +18,10 @@ from typing import List, Dict
 from datetime import datetime
 import base64
 import html as html_lib
-from .report_components import get_navigation_sidebar, get_sidebar_javascript
+from .report_components import (
+    get_breadcrumb_navigation, get_breadcrumb_javascript,
+    build_report_header, build_stat_cards
+)
 from .static_helper import get_css_links
 
 
@@ -75,13 +78,23 @@ class ImageReportGenerator:
         return 'manual'
 
     def _build_image_report_html(self, image_details: List[Dict], page_list: List[str]) -> str:
-        """Build the complete image report HTML"""
+        """Build the complete image report HTML using component system"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # Build navigation sidebar
-        # Check if broken links report exists
+        # Build breadcrumb navigation
         broken_links_exists = (self.reports_dir / 'broken_links_report.html').exists()
-        sidebar_html = get_navigation_sidebar('images', page_list, show_broken_links=broken_links_exists)
+        nav_html = get_breadcrumb_navigation('images', page_list=page_list, show_broken_links=broken_links_exists)
+
+        # Build header with breadcrumb
+        header_html = build_report_header(
+            title="📸 Image Download Report",
+            subtitle="Comprehensive analysis of image downloads and alt-text quality",
+            timestamp=timestamp,
+            breadcrumb=[
+                {'label': '🏠 Home', 'url': 'index.html'},
+                {'label': 'Images'}
+            ]
+        )
 
         # Calculate statistics
         total_images = len(image_details)
@@ -134,16 +147,11 @@ class ImageReportGenerator:
     <title>Image Download Report - WikiAccess</title>
 {get_css_links()}
 </head>
-<body class="has-sidebar">
-    {sidebar_html}
+<body>
+    {nav_html}
 
-    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
-
-    <div class="main-content">
-        <header>
-            <h1>📸 Image Download Report</h1>
-            <p class="timestamp">Generated: {timestamp}</p>
-        </header>
+    <div class="report-container">
+        {header_html}
 
         {stats_html}
 
@@ -179,7 +187,7 @@ class ImageReportGenerator:
         </section>
     </div>
 
-    {get_sidebar_javascript()}
+    {get_breadcrumb_javascript()}
     {self._get_javascript()}
 </body>
 </html>'''
@@ -522,7 +530,7 @@ class ImageReportGenerator:
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1200px;
+            min-width: 900px;
         }
 
         thead {
@@ -533,10 +541,11 @@ class ImageReportGenerator:
         }
 
         th {
-            padding: 1rem;
+            padding: 0.75rem;
             text-align: left;
             cursor: pointer;
             user-select: none;
+            font-size: 0.9em;
         }
 
         th:hover {
@@ -556,17 +565,56 @@ class ImageReportGenerator:
         }
 
         td {
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9em;
         }
 
-        /* Thumbnail */
+        /* Cell-specific styling */
         .thumbnail-cell {
             text-align: center;
+            padding: 0.5rem;
+        }
+
+        .page-cell {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .filename-cell {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+
+        .alt-text-cell {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .type-cell {
+            text-transform: uppercase;
+            font-size: 0.8em;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .size-cell {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: monospace;
+            font-size: 0.85em;
         }
 
         .thumbnail {
-            width: 80px;
-            height: 80px;
+            width: 60px;
+            height: 60px;
             object-fit: cover;
             border-radius: 4px;
             border: 2px solid #e0e0e0;
@@ -580,14 +628,14 @@ class ImageReportGenerator:
 
         .no-thumbnail {
             display: inline-block;
-            width: 80px;
-            height: 80px;
-            line-height: 80px;
+            width: 60px;
+            height: 60px;
+            line-height: 60px;
             text-align: center;
             background: #f0f0f0;
             border-radius: 4px;
             color: #999;
-            font-size: 2rem;
+            font-size: 1.5rem;
         }
 
         /* Status badges */
@@ -744,6 +792,23 @@ class ImageReportGenerator:
 
             .breakdown {
                 grid-template-columns: 1fr;
+            }
+
+            .thumbnail {
+                width: 50px;
+                height: 50px;
+            }
+
+            .no-thumbnail {
+                width: 50px;
+                height: 50px;
+                line-height: 50px;
+                font-size: 1.2rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+                font-size: 0.85em;
             }
         }
     </style>'''

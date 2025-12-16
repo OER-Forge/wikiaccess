@@ -16,7 +16,10 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
 import json
-from .report_components import get_navigation_sidebar, get_sidebar_javascript, get_jump_to_section_links
+from .report_components import (
+    get_breadcrumb_navigation, get_breadcrumb_javascript, get_jump_to_section_links,
+    build_report_header, build_stat_cards
+)
 from .static_helper import get_css_links
 
 
@@ -195,13 +198,21 @@ class HubReportGenerator:
         return stats
 
     def _build_hub_html(self, critical_issues: Dict, stats: Dict, page_reports: Dict, link_stats: Optional[Dict] = None) -> str:
-        """Build complete landing hub HTML"""
+        """Build complete landing hub HTML using component system"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # Build navigation sidebar
+        # Build breadcrumb navigation
         page_list = list(page_reports.keys())
         show_broken_links = link_stats and (link_stats.get('links_broken') or 0) > 0
-        sidebar_html = get_navigation_sidebar('hub', page_list, show_broken_links=show_broken_links)
+        nav_html = get_breadcrumb_navigation('hub', page_list=page_list, show_broken_links=show_broken_links)
+
+        # Build header with component
+        header_html = build_report_header(
+            title="✓ WikiAccess Report Hub",
+            subtitle="Comprehensive accessibility analysis and reporting",
+            timestamp=timestamp,
+            centered=True
+        )
 
         # Build jump-to-section links
         sections = [
@@ -218,7 +229,7 @@ class HubReportGenerator:
         stats_html = self._build_statistics_section(stats)
 
         # Build navigation tiles
-        nav_html = self._build_navigation_tiles(page_reports, link_stats)
+        nav_tiles_html = self._build_navigation_tiles(page_reports, link_stats)
 
         return f'''<!DOCTYPE html>
 <html lang="en">
@@ -228,17 +239,11 @@ class HubReportGenerator:
     <title>WikiAccess - Accessibility Report Hub</title>
 {get_css_links()}
 </head>
-<body class="has-sidebar">
-    {sidebar_html}
+<body>
+    {nav_html}
 
-    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
-
-    <div class="main-content">
-        <header>
-            <h1>✓ WikiAccess Report Hub</h1>
-            <p class="timestamp">Generated: {timestamp}</p>
-            <p class="subtitle">Comprehensive accessibility analysis and reporting</p>
-        </header>
+    <div class="report-container">
+        {header_html}
 
         {jump_html}
 
@@ -251,11 +256,11 @@ class HubReportGenerator:
         </div>
 
         <div id="navigation">
-            {nav_html}
+            {nav_tiles_html}
         </div>
     </div>
 
-    {get_sidebar_javascript()}
+    {get_breadcrumb_javascript()}
     {self._get_hub_javascript()}
 </body>
 </html>'''

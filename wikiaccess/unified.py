@@ -33,11 +33,12 @@ def convert_wiki_page(
     formats: Optional[list] = None,
     check_accessibility: bool = True,
     use_database: bool = True,
-    batch_id: Optional[str] = None
+    batch_id: Optional[str] = None,
+    include_accessibility_toolbar: bool = True
 ) -> Dict[str, Any]:
     """
     Convert a single DokuWiki page to accessible documents via Markdown.
-    
+
     Output structure:
         output/
         ├── markdown/
@@ -51,7 +52,7 @@ def convert_wiki_page(
         └── reports/
             ├── accessibility_report.html
             └── page_name_accessibility.html
-    
+
     Args:
         wiki_url: Base URL of the DokuWiki site
         page_name: Name of the wiki page to convert
@@ -60,6 +61,7 @@ def convert_wiki_page(
         check_accessibility: Whether to run accessibility checks
         use_database: Whether to use database for tracking (defaults to True)
         batch_id: Optional batch identifier for grouping related conversions
+        include_accessibility_toolbar: Whether to include toolbar in HTML (defaults to True)
 
     Returns:
         Dictionary with paths to generated files and accessibility results
@@ -91,7 +93,7 @@ def convert_wiki_page(
 
     # Initialize components
     client = DokuWikiHTTPClient(wiki_url)
-    converter = MarkdownConverter(client, output_dir)
+    converter = MarkdownConverter(client, output_dir, include_accessibility_toolbar)
     results = {}
 
     # Track conversion time
@@ -286,11 +288,12 @@ def convert_multiple_pages(
     formats: Optional[list] = None,
     check_accessibility: bool = True,
     use_database: bool = True,
-    skip_recent: bool = True
+    skip_recent: bool = True,
+    include_accessibility_toolbar: bool = True
 ) -> Dict[str, Dict[str, Any]]:
     """
     Convert multiple DokuWiki pages to accessible documents.
-    
+
     Output structure:
         output/
         ├── markdown/
@@ -310,7 +313,7 @@ def convert_multiple_pages(
             ├── accessibility_report.html (combined)
             ├── page1_accessibility.html
             └── page2_accessibility.html
-    
+
     Args:
         wiki_url: Base URL of the DokuWiki site
         page_names: List of page names to convert
@@ -319,6 +322,7 @@ def convert_multiple_pages(
         check_accessibility: Whether to run accessibility checks
         use_database: Whether to use database for tracking (defaults to True)
         skip_recent: Skip pages converted within last hour (defaults to True)
+        include_accessibility_toolbar: Whether to include toolbar in HTML (defaults to True)
 
     Returns:
         Dictionary mapping page names to their conversion results
@@ -342,7 +346,7 @@ def convert_multiple_pages(
         db.start_batch(batch_id, wiki_url)
 
     client = DokuWikiHTTPClient(wiki_url)
-    converter = MarkdownConverter(client, output_dir)
+    converter = MarkdownConverter(client, output_dir, include_accessibility_toolbar)
 
     page_results = {}
     # Create separate reporter for combined report (if multiple pages)

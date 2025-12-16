@@ -28,7 +28,8 @@ from .parser import DokuWikiParser
 class MarkdownConverter:
     """Convert DokuWiki content to Markdown, then to HTML/DOCX via Pandoc"""
     
-    def __init__(self, client: DokuWikiHTTPClient, output_dir: Optional[str] = None):
+    def __init__(self, client: DokuWikiHTTPClient, output_dir: Optional[str] = None,
+                 include_accessibility_toolbar: bool = True):
         self.client = client
         self.parser = DokuWikiParser()
         self.output_dir = Path(output_dir) if output_dir else Path('output')
@@ -41,6 +42,9 @@ class MarkdownConverter:
         self.image_count = 0
         self.image_success = 0
         self.image_failed = 0
+
+        # Configuration options
+        self.include_accessibility_toolbar = include_accessibility_toolbar
 
         # Detailed image tracking for reporting
         self.image_details = []  # List of dicts with full image metadata
@@ -513,8 +517,8 @@ class MarkdownConverter:
             html_content
         )
 
-        # Add accessibility controls toolbar before content
-        if '<body>' in html_content:
+        # Add accessibility controls toolbar before content (if enabled)
+        if self.include_accessibility_toolbar and '<body>' in html_content:
             accessibility_toolbar = '''    <div class="accessibility-toolbar" role="toolbar" aria-label="Accessibility controls">
         <!-- Screen reader announcement region -->
         <div id="a11y-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>

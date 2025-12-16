@@ -274,7 +274,10 @@ class LinkRewriter:
 
         # Import report components
         try:
-            from .report_components import get_navigation_sidebar, get_sidebar_javascript
+            from .report_components import (
+                get_breadcrumb_navigation, get_breadcrumb_javascript,
+                build_report_header, build_stat_cards
+            )
             from .static_helper import get_css_links
         except ImportError:
             print("Warning: Could not import report components, generating standalone report")
@@ -285,8 +288,48 @@ class LinkRewriter:
         reports_dir.mkdir(exist_ok=True)
         report_path = reports_dir / 'broken_links_report.html'
 
-        # Build navigation sidebar
-        sidebar_html = get_navigation_sidebar('broken_links', page_list or [], show_broken_links=True)
+        # Build breadcrumb navigation
+        nav_html = get_breadcrumb_navigation('broken_links', page_list=page_list or [], show_broken_links=True)
+
+        # Build header with breadcrumb
+        header_html = build_report_header(
+            title="🔗 Broken Links Report",
+            subtitle="Internal wiki links pointing to pages that haven't been converted",
+            breadcrumb=[
+                {'label': '🏠 Home', 'url': 'index.html'},
+                {'label': 'Broken Links'}
+            ]
+        )
+
+        # Build stat cards
+        stats_html = build_stat_cards([
+            {'value': len(broken_links), 'label': 'Broken Links', 'color': '#dc3545'},
+            {'value': sum(link['reference_count'] for link in broken_links), 'label': 'Total References', 'color': '#ff8800'}
+        ], grid_size='narrow')
+
+        # Build broken links cards
+        links_html = []
+        for link in broken_links:
+            target = link['target_page_id']
+            count = link['reference_count']
+            sources = link['referenced_by'].split(',')
+
+            badges_html = ' '.join([
+                f'<span class="report-badge danger">{source.strip()}</span>'
+                for source in sources[:5]  # Show first 5
+            ])
+
+            if len(sources) > 5:
+                badges_html += f' <span class="report-badge neutral">+{len(sources) - 5} more</span>'
+
+            links_html.append(f'''
+            <div class="report-card bordered critical">
+                <h3 class="report-card-title">Missing Page: {target}</h3>
+                <p><strong>Referenced {count} time{'s' if count != 1 else ''}  by:</strong></p>
+                <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    {badges_html}
+                </div>
+            </div>''')
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -296,61 +339,26 @@ class LinkRewriter:
     <title>Broken Links Report - WikiAccess</title>
 {get_css_links()}
 </head>
-<body class="has-sidebar">
-    {sidebar_html}
+<body>
+    {nav_html}
 
-    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
+    <div class="report-container">
+        {header_html}
 
-    <div class="main-content">
-        <header>
-            <h1>🔗 Broken Links Report</h1>
-            <p class="subtitle">Internal wiki links pointing to pages that haven't been converted</p>
-        </header>
+        <section class="report-section">
+            <h2 class="report-section-title">Summary Statistics</h2>
+            {stats_html}
+        </section>
 
-        <div class="summary">
-            <h2>Summary</h2>
-            <div class="summary-stats">
-                <div class="stat">
-                    <span class="stat-value">{len(broken_links)}</span>
-                    <span class="stat-label">Broken Links</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-value">{sum(link['reference_count'] for link in broken_links)}</span>
-                    <span class="stat-label">Total References</span>
-                </div>
+        <section class="report-section">
+            <h2 class="report-section-title">Broken Links Details</h2>
+            <div class="report-grid wide">
+                {''.join(links_html)}
             </div>
-        </div>
-
-        <div class="broken-links-grid">
-"""
-
-        for link in broken_links:
-            target = link['target_page_id']
-            count = link['reference_count']
-            sources = link['referenced_by'].split(',')
-
-            sources_html = '\n'.join([f'<span class="source-tag">{source.strip()}</span>' for source in sources])
-
-            html += f"""
-            <div class="broken-link">
-                <div class="target">Missing Page: {target}</div>
-                <div class="references">
-                    <span class="ref-count">{count} {('reference' if count == 1 else 'references')}</span>
-                    <div class="ref-sources">
-                        <strong>Referenced by:</strong>
-                        <div class="source-list">
-                            {sources_html}
-                        </div>
-                    </div>
-                </div>
-            </div>
-"""
-
-        html += f"""
-        </div>
+        </section>
     </div>
 
-    {get_sidebar_javascript()}
+    {get_breadcrumb_javascript()}
 </body>
 </html>
 """

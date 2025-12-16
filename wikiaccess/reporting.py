@@ -18,7 +18,10 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
 import os
-from .report_components import get_navigation_sidebar, get_sidebar_javascript
+from .report_components import (
+    get_breadcrumb_navigation, get_breadcrumb_javascript,
+    build_report_header, build_stat_cards, build_action_buttons
+)
 from .static_helper import get_css_links
 
 
@@ -72,80 +75,87 @@ class ReportGenerator:
             print(f"  ✓ Detailed report: {report_path}")
     
     def _build_dashboard_html(self) -> str:
-        """Build dashboard HTML"""
+        """Build dashboard HTML using component system"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # Build navigation sidebar
+        # Build breadcrumb navigation
         page_list = list(self.page_reports.keys())
-        # Check if broken links report exists (output_dir is already the reports directory)
         broken_links_exists = (self.output_dir / 'broken_links_report.html').exists()
-        sidebar_html = get_navigation_sidebar('accessibility', page_list, show_broken_links=broken_links_exists)
-        
+        nav_html = get_breadcrumb_navigation('accessibility', page_list=page_list, show_broken_links=broken_links_exists)
+
         # Calculate overall stats
         total_pages = len(self.page_reports)
-        
+
         if total_pages == 0:
             avg_html_aa = avg_html_aaa = avg_docx_aa = avg_docx_aaa = 0
             total_html_issues_aa = total_html_issues_aaa = 0
             total_docx_issues_aa = total_docx_issues_aaa = 0
         else:
-            # Average scores for HTML and DOCX
             avg_html_aa = sum(r['html']['score_aa'] for r in self.page_reports.values()) / total_pages
             avg_html_aaa = sum(r['html']['score_aaa'] for r in self.page_reports.values()) / total_pages
             avg_docx_aa = sum(r['docx']['score_aa'] for r in self.page_reports.values()) / total_pages
             avg_docx_aaa = sum(r['docx']['score_aaa'] for r in self.page_reports.values()) / total_pages
-            
-            # Total issues
             total_html_issues_aa = sum(len(r['html']['issues_aa']) for r in self.page_reports.values())
             total_html_issues_aaa = sum(len(r['html']['issues_aaa']) for r in self.page_reports.values())
             total_docx_issues_aa = sum(len(r['docx']['issues_aa']) for r in self.page_reports.values())
             total_docx_issues_aaa = sum(len(r['docx']['issues_aaa']) for r in self.page_reports.values())
-        
+
+        # Build header with breadcrumb
+        header_html = build_report_header(
+            title="✓ Accessibility Compliance Dashboard",
+            subtitle="WCAG 2.1 compliance analysis for all converted pages",
+            timestamp=timestamp,
+            breadcrumb=[
+                {'label': '🏠 Home', 'url': 'index.html'},
+                {'label': 'Accessibility'}
+            ]
+        )
+
+        # Build stat cards
+        stats_html = build_stat_cards([
+            {'value': total_pages, 'label': 'Pages Converted'},
+            {'value': f'{int(avg_html_aa)}%', 'label': 'HTML WCAG AA', 'color': self._get_score_color(avg_html_aa)},
+            {'value': f'{int(avg_html_aaa)}%', 'label': 'HTML WCAG AAA', 'color': self._get_score_color(avg_html_aaa)},
+            {'value': f'{int(avg_docx_aa)}%', 'label': 'DOCX WCAG AA', 'color': self._get_score_color(avg_docx_aa)},
+            {'value': f'{int(avg_docx_aaa)}%', 'label': 'DOCX WCAG AAA', 'color': self._get_score_color(avg_docx_aaa)},
+            {'value': total_html_issues_aa + total_docx_issues_aa, 'label': 'Total AA Issues', 'color': '#dc3545'}
+        ])
+
         # Build page table rows
         page_rows = []
         for page_name, reports in self.page_reports.items():
             html_report = reports['html']
             docx_report = reports['docx']
-            
-            # HTML scores
+
             html_aa = html_report['score_aa']
             html_aaa = html_report['score_aaa']
-            html_aa_color = self._get_score_color(html_aa)
-            html_aaa_color = self._get_score_color(html_aaa)
-            
-            # DOCX scores
+            html_aa_badge = self._get_score_badge(html_aa)
+            html_aaa_badge = self._get_score_badge(html_aaa)
+
             docx_aa = docx_report['score_aa']
             docx_aaa = docx_report['score_aaa']
-            docx_aa_color = self._get_score_color(docx_aa)
-            docx_aaa_color = self._get_score_color(docx_aaa)
-            
+            docx_aa_badge = self._get_score_badge(docx_aa)
+            docx_aaa_badge = self._get_score_badge(docx_aaa)
+
             detail_link = f'{page_name}_accessibility.html'
             html_file_link = f'../html/{page_name}.html'
             docx_file_link = f'../docx/{page_name}.docx'
-            
-            page_rows.append(f'''
-                <tr>
-                    <td>
-                        <a href="{detail_link}">{html_lib.escape(page_name)}</a>
-                        <div style="font-size: 0.8em; color: #666; margin-top: 0.25rem;">
-                            <a href="{html_file_link}" target="_blank">📄 HTML</a> | 
-                            <a href="{docx_file_link}" target="_blank">📄 DOCX</a>
-                        </div>
-                    </td>
-                    <td style="background: {html_aa_color}; font-weight: bold;">{html_aa}%</td>
-                    <td style="background: {html_aaa_color}; font-weight: bold;">{html_aaa}%</td>
-                    <td>{len(html_report['issues_aa'])}</td>
-                    <td style="background: {docx_aa_color}; font-weight: bold;">{docx_aa}%</td>
-                    <td style="background: {docx_aaa_color}; font-weight: bold;">{docx_aaa}%</td>
-                    <td>{len(docx_report['issues_aa'])}</td>
-                </tr>
-            ''')
-        
-        overall_html_aa_color = self._get_score_color(avg_html_aa)
-        overall_html_aaa_color = self._get_score_color(avg_html_aaa)
-        overall_docx_aa_color = self._get_score_color(avg_docx_aa)
-        overall_docx_aaa_color = self._get_score_color(avg_docx_aaa)
-        
+
+            page_rows.append([
+                f'<a href="{detail_link}" class="report-link">{html_lib.escape(page_name)}</a><br>'
+                f'<small><a href="{html_file_link}" target="_blank" rel="noopener">📄 HTML</a> | '
+                f'<a href="{docx_file_link}" target="_blank" rel="noopener">📝 DOCX</a></small>',
+                html_aa_badge,
+                html_aaa_badge,
+                str(len(html_report['issues_aa'])),
+                docx_aa_badge,
+                docx_aaa_badge,
+                str(len(docx_report['issues_aa']))
+            ])
+
+        # Build table
+        table_html = self._build_table_with_sections(page_rows)
+
         return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,80 +164,61 @@ class ReportGenerator:
     <title>Accessibility Compliance Dashboard</title>
 {get_css_links()}
 </head>
-<body class="has-sidebar">
-    {sidebar_html}
+<body>
+    {nav_html}
 
-    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
+    <div class="report-container">
+        {header_html}
 
-    <div class="main-content">
-        <header>
-            <h1>✓ Accessibility Compliance Dashboard</h1>
-            <p class="timestamp">Generated: {timestamp}</p>
-        </header>
-    
-    <div class="summary">
-        <div class="stat-card">
-            <div class="stat-value">{total_pages}</div>
-            <div class="stat-label">Pages Converted</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-value" style="background: {overall_html_aa_color}; padding: 0.5rem; border-radius: 4px;">{int(avg_html_aa)}%</div>
-            <div class="stat-label">HTML WCAG AA</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-value" style="background: {overall_html_aaa_color}; padding: 0.5rem; border-radius: 4px;">{int(avg_html_aaa)}%</div>
-            <div class="stat-label">HTML WCAG AAA</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-value" style="background: {overall_docx_aa_color}; padding: 0.5rem; border-radius: 4px;">{int(avg_docx_aa)}%</div>
-            <div class="stat-label">DOCX WCAG AA</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-value" style="background: {overall_docx_aaa_color}; padding: 0.5rem; border-radius: 4px;">{int(avg_docx_aaa)}%</div>
-            <div class="stat-label">DOCX WCAG AAA</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-value" style="color: #cc0000;">{total_html_issues_aa + total_docx_issues_aa}</div>
-            <div class="stat-label">Total AA Issues</div>
-        </div>
-    </div>
-    
-    <h2 style="margin-bottom: 1rem;">Page Reports</h2>
-    
-    <table>
-        <thead>
-            <tr>
-                <th rowspan="2">Page Name</th>
-                <th colspan="3" class="section-header">HTML</th>
-                <th colspan="3" class="section-header">DOCX</th>
-            </tr>
-            <tr>
-                <th>WCAG AA</th>
-                <th>WCAG AAA</th>
-                <th>AA Issues</th>
-                <th>WCAG AA</th>
-                <th>WCAG AAA</th>
-                <th>AA Issues</th>
-            </tr>
-        </thead>
-        <tbody>
-            {''.join(page_rows)}
-        </tbody>
-    </table>
-    
-    <footer>
-        <p>WCAG 2.1 Accessibility Compliance Report | <a href="https://www.w3.org/WAI/WCAG21/quickref/">WCAG Quick Reference</a></p>
-    </footer>
+        <section class="report-section">
+            <h2 class="report-section-title">Summary Statistics</h2>
+            {stats_html}
+        </section>
+
+        <section class="report-section">
+            <h2 class="report-section-title">Page Reports</h2>
+            {table_html}
+        </section>
     </div>
 
-    {get_sidebar_javascript()}
+    {get_breadcrumb_javascript()}
 </body>
 </html>'''
+
+    def _get_score_badge(self, score: int) -> str:
+        """Generate HTML badge for score"""
+        badge_class = 'success' if score >= 90 else 'warning' if score >= 70 else 'danger'
+        return f'<span class="report-badge score {badge_class}">{score}%</span>'
+
+    def _build_table_with_sections(self, page_rows: List[List[str]]) -> str:
+        """Build table with column sections"""
+        table_header = '''
+        <div class="report-table-wrapper">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Page Name</th>
+                        <th colspan="3" style="text-align: center; background: #2980b9;">HTML</th>
+                        <th colspan="3" style="text-align: center; background: #27ae60;">DOCX</th>
+                    </tr>
+                    <tr>
+                        <th class="center">WCAG AA</th>
+                        <th class="center">WCAG AAA</th>
+                        <th class="center">AA Issues</th>
+                        <th class="center">WCAG AA</th>
+                        <th class="center">WCAG AAA</th>
+                        <th class="center">AA Issues</th>
+                    </tr>
+                </thead>
+                <tbody>'''
+
+        rows_html = ''
+        for row in page_rows:
+            cells = ''.join([f'<td>{cell}</td>' if i == 0 else f'<td style="text-align: center;">{cell}</td>'
+                           for i, cell in enumerate(row)])
+            rows_html += f'<tr>{cells}</tr>'
+
+        return f'''{table_header}{rows_html}</tbody></table></div>'''
     
     def _get_enhanced_data(self, page_name):
         """Get enhanced data if database available"""
@@ -266,38 +257,53 @@ class ReportGenerator:
 
     def _build_combined_detail_html(self, page_name: str, html_report: Dict, docx_report: Dict,
                                     html_stats: Optional[Dict] = None, docx_stats: Optional[Dict] = None) -> str:
-        """Build combined detailed report HTML for both HTML and DOCX"""
+        """Build combined detailed report HTML using component system"""
 
-        # Build navigation sidebar
+        # Build breadcrumb navigation
         page_list = list(self.page_reports.keys())
-        # Check if broken links report exists (output_dir is already the reports directory)
         broken_links_exists = (self.output_dir / 'broken_links_report.html').exists()
-        sidebar_html = get_navigation_sidebar('page_detail', page_list, show_broken_links=broken_links_exists)
+        nav_html = get_breadcrumb_navigation('page_detail', current_page_name=page_name, page_list=page_list, show_broken_links=broken_links_exists)
 
         html_stats = html_stats or {}
         docx_stats = docx_stats or {}
 
         # Get enhanced data from database
         metadata, links, images, history = self._get_enhanced_data(page_name)
-        
+
+        # Build header with breadcrumb
+        header_html = build_report_header(
+            title=html_lib.escape(page_name),
+            subtitle="Detailed accessibility compliance analysis",
+            breadcrumb=[
+                {'label': '🏠 Home', 'url': 'index.html'},
+                {'label': 'Accessibility', 'url': 'accessibility_report.html'},
+                {'label': page_name}
+            ]
+        )
+
+        # Build action buttons
+        actions_html = build_action_buttons([
+            {'label': 'View HTML', 'url': f'../html/{page_name}.html', 'icon': '📄', 'external': True},
+            {'label': 'Download DOCX', 'url': f'../docx/{page_name}.docx', 'icon': '📝', 'download': True},
+            {'label': 'View Markdown', 'url': f'../markdown/{page_name}.md', 'icon': '📊', 'external': True}
+        ])
+
         # HTML scores
         html_aa = html_report['score_aa']
         html_aaa = html_report['score_aaa']
-        html_aa_color = self._get_score_color(html_aa)
-        html_aaa_color = self._get_score_color(html_aaa)
-        
+        html_aa_badge = self._get_score_badge(html_aa)
+        html_aaa_badge = self._get_score_badge(html_aaa)
+
         # DOCX scores
         docx_aa = docx_report['score_aa']
         docx_aaa = docx_report['score_aaa']
-        docx_aa_color = self._get_score_color(docx_aa)
-        docx_aaa_color = self._get_score_color(docx_aaa)
-        
-        # Build issue lists for HTML
+        docx_aa_badge = self._get_score_badge(docx_aa)
+        docx_aaa_badge = self._get_score_badge(docx_aaa)
+
+        # Build issue lists
         html_issues_aa_html = self._build_issue_list(html_report['issues_aa'], 'error')
         html_issues_aaa_html = self._build_issue_list(html_report['issues_aaa'], 'error-aaa')
         html_warnings_html = self._build_issue_list(html_report['warnings'], 'warning')
-        
-        # Build issue lists for DOCX
         docx_issues_aa_html = self._build_issue_list(docx_report['issues_aa'], 'error')
         docx_issues_aaa_html = self._build_issue_list(docx_report['issues_aaa'], 'error-aaa')
         docx_warnings_html = self._build_issue_list(docx_report['warnings'], 'warning')
@@ -310,104 +316,47 @@ class ReportGenerator:
     <title>Accessibility Report: {html_lib.escape(page_name)}</title>
 {get_css_links()}
 </head>
-<body class="has-sidebar">
-    {sidebar_html}
+<body>
+    {nav_html}
 
-    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
+    <div class="report-container">
+        {header_html}
 
-    <div class="main-content">
-        <a href="accessibility_report.html" class="back-link" aria-label="Back to Dashboard">← Back to Dashboard</a>
+        <section class="report-section">
+            <h2 class="report-section-title">Quick Actions</h2>
+            {actions_html}
+        </section>
 
-        <header>
-            <h1>{html_lib.escape(page_name)}</h1>
-        </header>
-
-
-        <!-- Enhanced Sections -->
-        <div class="enhanced-grid">
-            <!-- Quick Actions -->
-            <section class="enhanced-section quick-actions" aria-labelledby="quick-actions-heading">
-                <h3 id="quick-actions-heading">Quick Actions</h3>
-                <nav class="actions-list" aria-label="Page format options">
-                    <a href="../html/{page_name}.html" class="action-link" target="_blank" rel="noopener noreferrer" aria-label="View HTML version in new tab">📄 View HTML</a>
-                    <a href="../docx/{page_name}.docx" class="action-link" download aria-label="Download DOCX version">📝 Download DOCX</a>
-                    <a href="../markdown/{page_name}.md" class="action-link" target="_blank" rel="noopener noreferrer" aria-label="View Markdown source in new tab">📊 View Markdown</a>
-                </nav>
-            </section>
-            
-            <!-- Metadata -->
-            {f'''<div class="enhanced-section metadata">
-                <h3>Page Info</h3>
-                <div class="meta-grid">
-                    <div><strong>Converted:</strong> {metadata.get("converted_at", "N/A")}</div>
-                    <div><strong>Score:</strong> {metadata.get("score", 0)}%</div>
+        <div class="report-grid">
+            <!-- HTML Report Card -->
+            <div class="report-card bordered success no-hover">
+                <h3 class="report-card-title">📄 HTML Version</h3>
+                <div style="display: flex; gap: 1rem; margin: 1rem 0; justify-content: center;">
+                    {html_aa_badge}
+                    {html_aaa_badge}
                 </div>
-            </div>''' if metadata else ''}
-            
-            <!-- Links -->
-            {f'''<div class="enhanced-section links-info">
-                <h3>Links ({len(links.get("outgoing", []))} outgoing)</h3>
-                <div class="links-list">
-                    {" ".join([f'<div class="link-item {'link-ok' if l.get('status') == 'found' else 'link-broken'}">{'✓' if l.get('status') == 'found' else '✗'} {l.get("target", "")[:30]}</div>' for l in links.get("outgoing", [])[:10]])}
-                </div>
-            </div>''' if links.get("outgoing") else ''}
-            
-            <!-- Images -->
-            {f'''<div class="enhanced-section images-info">
-                <h3>Images ({len(images)})</h3>
-                <div class="images-list">
-                    {" ".join([f'<div class="img-item">{i.get("name", "N/A")} - <span class="{'ok' if i.get('status') in ['success', 'cached'] else 'bad'}">{i.get("status", "")}</span></div>' for i in images[:5]])}
-                </div>
-            </div>''' if images else ''}
-        </div>
-
-        
-        <div class="format-sections">
-        <!-- HTML Report -->
-        <div class="format-section">
-            <h2>HTML Version</h2>
-            <div class="scores">
-                <div class="score">
-                    <div class="score-value" style="background: {html_aa_color};">{html_aa}%</div>
-                    <div class="score-label">WCAG AA</div>
-                </div>
-                <div class="score">
-                    <div class="score-value" style="background: {html_aaa_color};">{html_aaa}%</div>
-                    <div class="score-label">WCAG AAA</div>
-                </div>
+                {self._build_media_stats("HTML", html_stats)}
+                {self._build_format_issues("AA Issues", html_issues_aa_html, html_report['issues_aa'])}
+                {self._build_format_issues("AAA Issues", html_issues_aaa_html, html_report['issues_aaa'])}
+                {self._build_format_issues("Warnings", html_warnings_html, html_report['warnings'])}
             </div>
-            
-            {self._build_media_stats("HTML", html_stats)}
-            
-            {self._build_format_issues("AA Issues", html_issues_aa_html, html_report['issues_aa'])}
-            {self._build_format_issues("AAA Issues", html_issues_aaa_html, html_report['issues_aaa'])}
-            {self._build_format_issues("Warnings", html_warnings_html, html_report['warnings'])}
-        </div>
-        
-        <!-- DOCX Report -->
-        <div class="format-section">
-            <h2>DOCX Version</h2>
-            <div class="scores">
-                <div class="score">
-                    <div class="score-value" style="background: {docx_aa_color};">{docx_aa}%</div>
-                    <div class="score-label">WCAG AA</div>
+
+            <!-- DOCX Report Card -->
+            <div class="report-card bordered success no-hover">
+                <h3 class="report-card-title">📝 DOCX Version</h3>
+                <div style="display: flex; gap: 1rem; margin: 1rem 0; justify-content: center;">
+                    {docx_aa_badge}
+                    {docx_aaa_badge}
                 </div>
-                <div class="score">
-                    <div class="score-value" style="background: {docx_aaa_color};">{docx_aaa}%</div>
-                    <div class="score-label">WCAG AAA</div>
-                </div>
+                {self._build_media_stats("DOCX", docx_stats)}
+                {self._build_format_issues("AA Issues", docx_issues_aa_html, docx_report['issues_aa'])}
+                {self._build_format_issues("AAA Issues", docx_issues_aaa_html, docx_report['issues_aaa'])}
+                {self._build_format_issues("Warnings", docx_warnings_html, docx_report['warnings'])}
             </div>
-            
-            {self._build_media_stats("DOCX", docx_stats)}
-            
-            {self._build_format_issues("AA Issues", docx_issues_aa_html, docx_report['issues_aa'])}
-            {self._build_format_issues("AAA Issues", docx_issues_aaa_html, docx_report['issues_aaa'])}
-            {self._build_format_issues("Warnings", docx_warnings_html, docx_report['warnings'])}
         </div>
     </div>
-    </div>
 
-    {get_sidebar_javascript()}
+    {get_breadcrumb_javascript()}
 </body>
 </html>'''
     

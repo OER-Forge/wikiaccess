@@ -1,0 +1,676 @@
+/* WikiAccess Component Design System */
+
+/* ============================================
+   LAYOUT COMPONENTS
+   ============================================ */
+
+/* Standard container for all reports */
+.report-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Report Header Component */
+.report-header {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.report-header.centered {
+    text-align: center;
+}
+
+.report-header-title {
+    font-size: 2.5em;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.report-header-subtitle {
+    color: #666;
+    font-size: 1.1em;
+    margin-top: 0.5rem;
+}
+
+.report-header-timestamp {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 0.5rem;
+}
+
+/* Breadcrumb Navigation Component */
+.report-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9em;
+}
+
+.report-breadcrumb-item {
+    color: #3498db;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.report-breadcrumb-item:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+.report-breadcrumb-item.active {
+    color: #666;
+    pointer-events: none;
+}
+
+.report-breadcrumb-separator {
+    color: #999;
+}
+
+/* Section Component */
+.report-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.report-section-title {
+    font-size: 1.8em;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.report-section-description {
+    color: #666;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+/* ============================================
+   CARD COMPONENTS
+   ============================================ */
+
+/* Universal Card Grid */
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.report-grid.wide {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.report-grid.narrow {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.report-grid.medium {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/* Universal Card Component */
+.report-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.report-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.report-card.no-hover:hover {
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Card with colored border */
+.report-card.bordered {
+    border-left: 4px solid #3498db;
+}
+
+.report-card.bordered.critical {
+    border-left-color: #dc3545;
+}
+
+.report-card.bordered.high {
+    border-left-color: #ff8800;
+}
+
+.report-card.bordered.medium {
+    border-left-color: #ffc107;
+}
+
+.report-card.bordered.low {
+    border-left-color: #3498db;
+}
+
+.report-card.bordered.success {
+    border-left-color: #28a745;
+}
+
+/* Stat Card Variant */
+.report-card.stat {
+    text-align: center;
+    border: 2px solid #e0e0e0;
+}
+
+.report-card-stat-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    line-height: 1;
+    color: #2c3e50;
+}
+
+.report-card-stat-label {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 0.5rem;
+}
+
+/* Interactive Card Variant */
+.report-card.interactive {
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.report-card.interactive:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Card Title */
+.report-card-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.report-card-icon {
+    font-size: 3em;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.report-card-content {
+    font-size: 0.95em;
+    color: #666;
+    line-height: 1.5;
+}
+
+/* ============================================
+   TABLE COMPONENTS
+   ============================================ */
+
+.report-table-wrapper {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-table thead {
+    background: #3498db;
+    color: white;
+}
+
+.report-table thead th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.report-table thead th.center {
+    text-align: center;
+}
+
+.report-table tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.report-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.report-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Sortable table headers */
+.report-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.5rem;
+}
+
+.report-table th.sortable:hover {
+    background: #2980b9;
+}
+
+.report-table th.sortable::after {
+    content: '⇅';
+    position: absolute;
+    right: 0.5rem;
+    opacity: 0.5;
+}
+
+.report-table th.sortable.sorted-asc::after {
+    content: '↑';
+    opacity: 1;
+}
+
+.report-table th.sortable.sorted-desc::after {
+    content: '↓';
+    opacity: 1;
+}
+
+/* ============================================
+   BADGE COMPONENTS
+   ============================================ */
+
+.report-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-align: center;
+}
+
+.report-badge.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.report-badge.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.report-badge.danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.report-badge.info {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.report-badge.neutral {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+/* Status badge variants */
+.report-badge.status-success {
+    background: #28a745;
+    color: white;
+}
+
+.report-badge.status-failed {
+    background: #dc3545;
+    color: white;
+}
+
+.report-badge.status-cached {
+    background: #17a2b8;
+    color: white;
+}
+
+.report-badge.status-skipped {
+    background: #6c757d;
+    color: white;
+}
+
+/* Score badge */
+.report-badge.score {
+    font-size: 1em;
+    padding: 0.5rem 1rem;
+    min-width: 60px;
+}
+
+/* ============================================
+   FILTER & CONTROL COMPONENTS
+   ============================================ */
+
+.report-filter-bar {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+}
+
+.report-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.report-filter-label {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9em;
+}
+
+.report-filter-select,
+.report-filter-input {
+    padding: 0.5rem 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 0.9em;
+    background: white;
+    transition: border-color 0.2s;
+}
+
+.report-filter-select:focus,
+.report-filter-input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.report-filter-button {
+    padding: 0.5rem 1.5rem;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.report-filter-button:hover {
+    background: #2980b9;
+}
+
+.report-filter-button.secondary {
+    background: #6c757d;
+}
+
+.report-filter-button.secondary:hover {
+    background: #5a6268;
+}
+
+/* ============================================
+   ACTION COMPONENTS
+   ============================================ */
+
+.report-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.report-action-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    background: #3498db;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.report-action-link:hover {
+    background: #2980b9;
+}
+
+.report-action-link.secondary {
+    background: #6c757d;
+}
+
+.report-action-link.secondary:hover {
+    background: #5a6268;
+}
+
+.report-action-link.success {
+    background: #28a745;
+}
+
+.report-action-link.success:hover {
+    background: #218838;
+}
+
+/* Inline action link */
+.report-link {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.report-link:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+/* Back link */
+.report-back-link {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.report-back-link:hover {
+    text-decoration: underline;
+}
+
+/* ============================================
+   LIST COMPONENTS
+   ============================================ */
+
+.report-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.report-list-item {
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.report-list-item:last-child {
+    margin-bottom: 0;
+}
+
+.report-list-item-icon {
+    font-size: 1.2em;
+    flex-shrink: 0;
+}
+
+.report-list-item-content {
+    flex: 1;
+}
+
+.report-list-item-meta {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+/* ============================================
+   UTILITY COMPONENTS
+   ============================================ */
+
+/* Empty state */
+.report-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #666;
+}
+
+.report-empty-state-icon {
+    font-size: 4em;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.report-empty-state-message {
+    font-size: 1.2em;
+    margin-bottom: 0.5rem;
+}
+
+.report-empty-state-hint {
+    font-size: 0.9em;
+    color: #999;
+}
+
+/* Loading state */
+.report-loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+/* Alert/Notice component */
+.report-alert {
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid;
+}
+
+.report-alert.success {
+    background: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+
+.report-alert.warning {
+    background: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.report-alert.danger {
+    background: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.report-alert.info {
+    background: #d1ecf1;
+    border-color: #17a2b8;
+    color: #0c5460;
+}
+
+/* Divider */
+.report-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 2rem 0;
+}
+
+/* ============================================
+   RESPONSIVE UTILITIES
+   ============================================ */
+
+@media (max-width: 768px) {
+    .report-container {
+        padding: 1rem;
+    }
+
+    .report-header-title {
+        font-size: 1.8em;
+    }
+
+    .report-section-title {
+        font-size: 1.4em;
+    }
+
+    .report-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-grid.narrow {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .report-filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .report-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .report-card-stat-value {
+        font-size: 2em;
+    }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+    .report-sidebar,
+    .mobile-menu-btn,
+    .report-filter-bar,
+    .report-breadcrumb {
+        display: none;
+    }
+
+    .report-container {
+        max-width: 100%;
+        padding: 0;
+    }
+
+    .report-card,
+    .report-section {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #e0e0e0;
+    }
+
+    .report-table {
+        font-size: 0.85em;
+    }
+
+    body.has-sidebar {
+        margin-left: 0;
+    }
+}

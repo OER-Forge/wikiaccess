@@ -40,8 +40,10 @@ def get_css_links():
         HTML string with link tags
     """
     css_files = [
-        'sidebar.css',
+        'sidebar.css',  # Keep for backward compatibility (temporary)
+        'breadcrumb-nav.css',
         'report-base.css',
+        'components.css',
         'enhanced-sections.css',
         'accessibility.css'
     ]
