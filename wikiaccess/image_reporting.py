@@ -18,7 +18,8 @@ from typing import List, Dict
 from datetime import datetime
 import base64
 import html as html_lib
-from .report_components import get_navigation_sidebar, get_sidebar_css, get_sidebar_javascript
+from .report_components import get_navigation_sidebar, get_sidebar_javascript
+from .static_helper import get_css_links
 
 
 class ImageReportGenerator:
@@ -78,7 +79,9 @@ class ImageReportGenerator:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # Build navigation sidebar
-        sidebar_html = get_navigation_sidebar('images', page_list)
+        # Check if broken links report exists
+        broken_links_exists = (self.reports_dir / 'broken_links_report.html').exists()
+        sidebar_html = get_navigation_sidebar('images', page_list, show_broken_links=broken_links_exists)
 
         # Calculate statistics
         total_images = len(image_details)
@@ -129,8 +132,7 @@ class ImageReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Download Report - WikiAccess</title>
-    {get_sidebar_css()}
-    {self._get_css_styles()}
+{get_css_links()}
 </head>
 <body class="has-sidebar">
     {sidebar_html}

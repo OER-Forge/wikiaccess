@@ -16,7 +16,8 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
 import json
-from .report_components import get_navigation_sidebar, get_sidebar_css, get_sidebar_javascript, get_jump_to_section_links, get_jump_nav_css
+from .report_components import get_navigation_sidebar, get_sidebar_javascript, get_jump_to_section_links
+from .static_helper import get_css_links
 
 
 class HubReportGenerator:
@@ -27,13 +28,14 @@ class HubReportGenerator:
         self.reports_dir = self.output_dir / 'reports'
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_hub(self, page_reports: Dict, image_details: List[Dict]) -> str:
+    def generate_hub(self, page_reports: Dict, image_details: List[Dict], link_stats: Optional[Dict] = None) -> str:
         """
         Generate landing hub (index.html) with critical issues and navigation
 
         Args:
             page_reports: Dict of {page_name: {'html': report, 'docx': report, 'html_stats': stats, 'docx_stats': stats}}
             image_details: List of image metadata dicts with alt_text_quality field
+            link_stats: Optional dict with link rewriting statistics
 
         Returns:
             Path to generated index.html
@@ -41,13 +43,13 @@ class HubReportGenerator:
         hub_path = self.reports_dir / 'index.html'
 
         # Detect critical issues
-        critical_issues = self._detect_critical_issues(page_reports, image_details)
+        critical_issues = self._detect_critical_issues(page_reports, image_details, link_stats)
 
         # Calculate overall statistics
-        stats = self._calculate_statistics(page_reports, image_details)
+        stats = self._calculate_statistics(page_reports, image_details, link_stats)
 
         # Build HTML
-        html = self._build_hub_html(critical_issues, stats, page_reports)
+        html = self._build_hub_html(critical_issues, stats, page_reports, link_stats)
 
         with open(hub_path, 'w', encoding='utf-8') as f:
             f.write(html)
@@ -55,7 +57,7 @@ class HubReportGenerator:
         print(f"\n🏠 Landing Hub: {hub_path}")
         return str(hub_path)
 
-    def _detect_critical_issues(self, page_reports: Dict, image_details: List[Dict]) -> Dict:
+    def _detect_critical_issues(self, page_reports: Dict, image_details: List[Dict], link_stats: Optional[Dict] = None) -> Dict:
         """
         Detect critical accessibility issues
 
@@ -64,12 +66,14 @@ class HubReportGenerator:
             - wcag_failures: list of pages with WCAG AA < 70%
             - broken_images: list of failed image downloads
             - multi_issue_pages: list of pages with 5+ issues
+            - broken_links: count of broken internal links
         """
         critical = {
             'missing_alt_text': [],
             'wcag_failures': [],
             'broken_images': [],
-            'multi_issue_pages': []
+            'multi_issue_pages': [],
+            'broken_links': link_stats.get('links_broken', 0) if link_stats else 0
         }
 
         # 1. Missing alt-text
@@ -129,6 +133,8 @@ class HubReportGenerator:
                     'docx_aa_issues': len(docx_report.get('issues_aa', []))
                 })
 
+        # 5. Store broken links count (already added to critical dict above)
+
         return critical
 
     def _generate_suggested_alt_text(self, img: Dict) -> str:
@@ -151,7 +157,7 @@ class HubReportGenerator:
 
         return "Image description needed"
 
-    def _calculate_statistics(self, page_reports: Dict, image_details: List[Dict]) -> Dict:
+    def _calculate_statistics(self, page_reports: Dict, image_details: List[Dict], link_stats: Optional[Dict] = None) -> Dict:
         """Calculate overall statistics for dashboard"""
         stats = {
             'total_pages': len(page_reports),
@@ -164,7 +170,10 @@ class HubReportGenerator:
             'images_success': 0,
             'images_failed': 0,
             'alt_text_missing': 0,
-            'alt_text_manual': 0
+            'alt_text_manual': 0,
+            'total_links': link_stats.get('links_found', 0) if link_stats else 0,
+            'links_rewritten': link_stats.get('links_rewritten', 0) if link_stats else 0,
+            'links_broken': link_stats.get('links_broken', 0) if link_stats else 0
         }
 
         if page_reports:
@@ -185,13 +194,14 @@ class HubReportGenerator:
 
         return stats
 
-    def _build_hub_html(self, critical_issues: Dict, stats: Dict, page_reports: Dict) -> str:
+    def _build_hub_html(self, critical_issues: Dict, stats: Dict, page_reports: Dict, link_stats: Optional[Dict] = None) -> str:
         """Build complete landing hub HTML"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # Build navigation sidebar
         page_list = list(page_reports.keys())
-        sidebar_html = get_navigation_sidebar('hub', page_list)
+        show_broken_links = link_stats and (link_stats.get('links_broken') or 0) > 0
+        sidebar_html = get_navigation_sidebar('hub', page_list, show_broken_links=show_broken_links)
 
         # Build jump-to-section links
         sections = [
@@ -208,7 +218,7 @@ class HubReportGenerator:
         stats_html = self._build_statistics_section(stats)
 
         # Build navigation tiles
-        nav_html = self._build_navigation_tiles(page_reports)
+        nav_html = self._build_navigation_tiles(page_reports, link_stats)
 
         return f'''<!DOCTYPE html>
 <html lang="en">
@@ -216,9 +226,7 @@ class HubReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WikiAccess - Accessibility Report Hub</title>
-    {get_sidebar_css()}
-    {get_jump_nav_css()}
-    {self._get_hub_css()}
+{get_css_links()}
 </head>
 <body class="has-sidebar">
     {sidebar_html}
@@ -254,11 +262,13 @@ class HubReportGenerator:
 
     def _build_critical_issues_section(self, critical: Dict) -> str:
         """Build critical issues section with quick-fix suggestions"""
+        broken_links_count = critical.get('broken_links') or 0
         total_critical = (
             len(critical['missing_alt_text']) +
             len(critical['wcag_failures']) +
             len(critical['broken_images']) +
-            len(critical['multi_issue_pages'])
+            len(critical['multi_issue_pages']) +
+            (1 if broken_links_count > 0 else 0)
         )
 
         if total_critical == 0:
@@ -377,6 +387,16 @@ class HubReportGenerator:
                     {more_text}
                 </div>''')
 
+        # 5. Broken links
+        broken_links_count = critical.get('broken_links') or 0
+        if broken_links_count > 0:
+            issue_cards.append(f'''
+                <div class="issue-card issue-medium">
+                    <h3>🔗 Broken Internal Links ({broken_links_count})</h3>
+                    <p class="issue-description">Internal wiki links pointing to pages that haven't been converted</p>
+                    <a href="broken_links_report.html" class="view-all-link">View Broken Links Report →</a>
+                </div>''')
+
         return f'''
     <section class="critical-issues">
         <h2>🚨 Critical Issues ({total_critical})</h2>
@@ -464,11 +484,37 @@ class HubReportGenerator:
                 <div class="stat-value" style="color: #28a745;">{stats['alt_text_manual']}</div>
                 <div class="stat-label">Manual Alt-Text</div>
             </div>
+
+            <div class="stat-card">
+                <div class="stat-value">{stats['total_links']}</div>
+                <div class="stat-label">Total Links</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" style="color: #28a745;">{stats['links_rewritten']}</div>
+                <div class="stat-label">Links Rewritten</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" style="color: {'#dc3545' if (stats.get('links_broken') or 0) > 0 else '#28a745'};">{stats.get('links_broken') or 0}</div>
+                <div class="stat-label">Broken Links</div>
+            </div>
         </div>
     </section>'''
 
-    def _build_navigation_tiles(self, page_reports: Dict) -> str:
+    def _build_navigation_tiles(self, page_reports: Dict, link_stats: Optional[Dict] = None) -> str:
         """Build navigation tiles section"""
+        # Check if broken links report exists
+        broken_links_tile = ""
+        broken_links_count = (link_stats.get('links_broken') or 0) if link_stats else 0
+        if broken_links_count > 0:
+            broken_links_tile = f'''
+            <a href="broken_links_report.html" class="nav-tile">
+                <div class="tile-icon">🔗</div>
+                <h3>Broken Links Report</h3>
+                <p>{broken_links_count} internal links to unconverted pages</p>
+            </a>'''
+
         return f'''
     <section class="navigation-tiles">
         <h2>📑 Detailed Reports</h2>
@@ -484,6 +530,8 @@ class HubReportGenerator:
                 <h3>Image Report</h3>
                 <p>Alt-text analysis, download status, and quality metrics</p>
             </a>
+
+            {broken_links_tile}
 
             <div class="nav-tile nav-tile-pages">
                 <div class="tile-icon">📄</div>

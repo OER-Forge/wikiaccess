@@ -7,15 +7,17 @@ search functionality, and common styling.
 """
 
 from typing import List, Dict, Optional
+from .static_helper import get_css_links
 
 
-def get_navigation_sidebar(current_page: str, page_list: Optional[List[str]] = None) -> str:
+def get_navigation_sidebar(current_page: str, page_list: Optional[List[str]] = None, show_broken_links: bool = False) -> str:
     """
     Generate persistent navigation sidebar for all reports
 
     Args:
-        current_page: Current page identifier ('hub', 'accessibility', 'images', 'page_detail')
+        current_page: Current page identifier ('hub', 'accessibility', 'images', 'broken_links', 'page_detail')
         page_list: Optional list of page names for the pages section
+        show_broken_links: Whether to show the broken links navigation item
 
     Returns:
         HTML string for navigation sidebar
@@ -26,6 +28,7 @@ def get_navigation_sidebar(current_page: str, page_list: Optional[List[str]] = N
     hub_active = "active" if current_page == "hub" else ""
     accessibility_active = "active" if current_page == "accessibility" else ""
     images_active = "active" if current_page == "images" else ""
+    broken_links_active = "active" if current_page == "broken_links" else ""
     pages_active = "active" if current_page == "page_detail" else ""
 
     # Build page list HTML
@@ -74,6 +77,12 @@ def get_navigation_sidebar(current_page: str, page_list: Optional[List[str]] = N
                         <span class="nav-label">Images</span>
                     </a>
                 </li>
+                {f'''<li class="{broken_links_active}">
+                    <a href="broken_links_report.html">
+                        <span class="nav-icon">🔗</span>
+                        <span class="nav-label">Broken Links</span>
+                    </a>
+                </li>''' if show_broken_links else ''}
             </ul>
 
             <!-- Pages Section -->
@@ -89,235 +98,6 @@ def get_navigation_sidebar(current_page: str, page_list: Optional[List[str]] = N
     </nav>'''
 
 
-def get_sidebar_css() -> str:
-    """Return CSS for navigation sidebar"""
-    return '''<style>
-        /* Sidebar Navigation */
-        .report-sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            width: 280px;
-            background: #2c3e50;
-            color: white;
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-            z-index: 1000;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
-        }
-
-        .report-sidebar.collapsed {
-            transform: translateX(-240px);
-        }
-
-        .sidebar-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1.5rem;
-            background: #34495e;
-            border-bottom: 2px solid #1a252f;
-        }
-
-        .sidebar-header h2 {
-            margin: 0;
-            font-size: 1.3em;
-            color: white;
-        }
-
-        .sidebar-toggle {
-            background: transparent;
-            border: 2px solid #7f8c8d;
-            color: white;
-            cursor: pointer;
-            width: 32px;
-            height: 32px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .sidebar-toggle:hover {
-            background: #7f8c8d;
-            border-color: #95a5a6;
-        }
-
-        .toggle-icon {
-            font-size: 1.5em;
-            font-weight: bold;
-            transition: transform 0.3s ease;
-        }
-
-        .report-sidebar.collapsed .toggle-icon {
-            transform: rotate(180deg);
-        }
-
-        .sidebar-content {
-            padding: 1rem;
-        }
-
-        .sidebar-search {
-            margin-bottom: 1.5rem;
-        }
-
-        .sidebar-search input {
-            width: 100%;
-            padding: 0.75rem;
-            background: #34495e;
-            border: 2px solid #7f8c8d;
-            border-radius: 4px;
-            color: white;
-            font-size: 0.9em;
-        }
-
-        .sidebar-search input:focus {
-            outline: none;
-            border-color: #3498db;
-            background: #2c3e50;
-        }
-
-        .sidebar-search input::placeholder {
-            color: #95a5a6;
-        }
-
-        .nav-main {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 1.5rem 0;
-        }
-
-        .nav-main li {
-            margin-bottom: 0.5rem;
-        }
-
-        .nav-main a {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            color: #ecf0f1;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-        }
-
-        .nav-main a:hover {
-            background: #34495e;
-            color: white;
-        }
-
-        .nav-main li.active a {
-            background: #3498db;
-            color: white;
-            font-weight: 600;
-        }
-
-        .nav-icon {
-            font-size: 1.3em;
-            margin-right: 0.75rem;
-            width: 24px;
-            text-align: center;
-        }
-
-        .nav-label {
-            flex: 1;
-        }
-
-        .nav-section {
-            border-top: 1px solid #34495e;
-            padding-top: 1rem;
-            margin-top: 1rem;
-        }
-
-        .nav-section-title {
-            font-size: 0.85em;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #95a5a6;
-            margin: 0 0 0.75rem 0.5rem;
-            font-weight: 600;
-        }
-
-        .nav-pages {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .nav-pages li {
-            margin-bottom: 0.25rem;
-        }
-
-        .nav-pages a {
-            display: block;
-            padding: 0.5rem 1rem;
-            color: #bdc3c7;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 0.9em;
-            transition: all 0.2s ease;
-        }
-
-        .nav-pages a:hover {
-            background: #34495e;
-            color: white;
-        }
-
-        .more-pages {
-            font-style: italic;
-            color: #7f8c8d;
-            font-size: 0.85em;
-            padding: 0.5rem 1rem;
-        }
-
-        /* Main content adjustment for sidebar */
-        body.has-sidebar {
-            margin-left: 280px;
-            transition: margin-left 0.3s ease;
-        }
-
-        body.has-sidebar.sidebar-collapsed {
-            margin-left: 40px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .report-sidebar {
-                width: 100%;
-                transform: translateX(-100%);
-            }
-
-            .report-sidebar.mobile-open {
-                transform: translateX(0);
-            }
-
-            body.has-sidebar {
-                margin-left: 0;
-            }
-
-            .mobile-menu-btn {
-                display: block;
-                position: fixed;
-                top: 1rem;
-                left: 1rem;
-                z-index: 999;
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 0.75rem;
-                border-radius: 4px;
-                cursor: pointer;
-            }
-        }
-
-        .mobile-menu-btn {
-            display: none;
-        }
-    </style>'''
 
 
 def get_sidebar_javascript() -> str:
@@ -401,54 +181,6 @@ def get_jump_to_section_links(sections: List[Dict[str, str]]) -> str:
     </nav>'''
 
 
-def get_jump_nav_css() -> str:
-    """Return CSS for jump navigation"""
-    return '''<style>
-        .jump-nav {
-            background: #e7f3ff;
-            border: 2px solid #3498db;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .jump-nav summary {
-            cursor: pointer;
-            font-weight: 600;
-            color: #2c3e50;
-            user-select: none;
-            padding: 0.5rem;
-        }
-
-        .jump-nav summary:hover {
-            color: #3498db;
-        }
-
-        .jump-list {
-            list-style: none;
-            padding: 0;
-            margin: 1rem 0 0 0;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 0.5rem;
-        }
-
-        .jump-list a {
-            display: block;
-            padding: 0.5rem 1rem;
-            background: white;
-            border-radius: 4px;
-            color: #3498db;
-            text-decoration: none;
-            transition: all 0.2s ease;
-        }
-
-        .jump-list a:hover {
-            background: #3498db;
-            color: white;
-            transform: translateX(4px);
-        }
-    </style>'''
 
 
 if __name__ == '__main__':

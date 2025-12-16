@@ -27,6 +27,17 @@ WikiAccess converts DokuWiki pages into WCAG 2.1-compliant HTML and Microsoft Wo
 - **🔍 50+ Accessibility Rules**: Color contrast, heading hierarchy, alt-text, keyboard access
 - **📈 Progress Tracking**: Batch processing with aggregate compliance scores
 
+### 🗄️ **Database Tracking** (New!)
+- **📊 Conversion History**: Track every conversion with timestamps and results
+- **🔄 Incremental Updates**: Automatically skip recently converted pages
+- **📈 Accessibility Trends**: Monitor WCAG scores over time
+- **🖼️ Image Analytics**: Identify problematic image sources and failure patterns
+- **🔗 Link Management**: Track internal links and detect broken references
+- **📋 Batch Management**: Resume failed conversions without re-processing successful pages
+- **📤 CSV Export**: Generate compliance reports for stakeholders
+
+See [DATABASE.md](DATABASE.md) for complete documentation.
+
 ---
 
 ## 🚀 Quick Start

@@ -17,15 +17,18 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
-from .report_components import get_navigation_sidebar, get_sidebar_css, get_sidebar_javascript
+import os
+from .report_components import get_navigation_sidebar, get_sidebar_javascript
+from .static_helper import get_css_links
 
 
 class ReportGenerator:
     """Generate accessibility compliance reports"""
-    
-    def __init__(self, output_dir: str = 'output'):
+
+    def __init__(self, output_dir: str = 'output', db=None):
         self.output_dir = Path(output_dir)
         self.page_reports = {}  # page_name -> {html_report, docx_report}
+        self.db = db  # Database connection for enhanced reporting
     
     def add_page_reports(self, page_name: str, html_report: Dict, docx_report: Dict,
                         html_stats: Dict = None, docx_stats: Dict = None):
@@ -74,7 +77,9 @@ class ReportGenerator:
 
         # Build navigation sidebar
         page_list = list(self.page_reports.keys())
-        sidebar_html = get_navigation_sidebar('accessibility', page_list)
+        # Check if broken links report exists (output_dir is already the reports directory)
+        broken_links_exists = (self.output_dir / 'broken_links_report.html').exists()
+        sidebar_html = get_navigation_sidebar('accessibility', page_list, show_broken_links=broken_links_exists)
         
         # Calculate overall stats
         total_pages = len(self.page_reports)
@@ -147,118 +152,7 @@ class ReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accessibility Compliance Dashboard</title>
-    {get_sidebar_css()}
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.6;
-            color: #1a1a1a;
-            background: #f5f5f5;
-        }}
-
-        .main-content {{
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }}
-        
-        header {{
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        
-        h1 {{
-            font-size: 2em;
-            margin-bottom: 0.5rem;
-        }}
-        
-        .timestamp {{
-            color: #666;
-            font-size: 0.9em;
-        }}
-        
-        .summary {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }}
-        
-        .stat-card {{
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        
-        .stat-value {{
-            font-size: 2em;
-            font-weight: bold;
-            line-height: 1;
-        }}
-        
-        .stat-label {{
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 0.5rem;
-        }}
-        
-        table {{
-            width: 100%;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-collapse: collapse;
-        }}
-        
-        thead {{
-            background: #0066cc;
-            color: white;
-        }}
-        
-        th, td {{
-            padding: 1rem;
-            text-align: center;
-        }}
-        
-        th:first-child, td:first-child {{
-            text-align: left;
-        }}
-        
-        tbody tr:nth-child(even) {{
-            background: #f9f9f9;
-        }}
-        
-        tbody tr:hover {{
-            background: #f0f0f0;
-        }}
-        
-        a {{
-            color: #0066cc;
-            text-decoration: none;
-        }}
-        
-        a:hover {{
-            text-decoration: underline;
-        }}
-        
-        .section-header {{
-            background: #e6f2ff;
-            font-weight: bold;
-            text-align: center;
-        }}
-    </style>
+{get_css_links()}
 </head>
 <body class="has-sidebar">
     {sidebar_html}
@@ -335,16 +229,56 @@ class ReportGenerator:
 </body>
 </html>'''
     
+    def _get_enhanced_data(self, page_name):
+        """Get enhanced data if database available"""
+        if not self.db:
+            return {}, {}, [], []
+        
+        try:
+            # Get metadata
+            cursor = self.db.conn.execute(
+                'SELECT converted_at, html_wcag_aa_score FROM pages WHERE page_id = ? ORDER BY converted_at DESC LIMIT 1',
+                (page_name.replace('_', ':'),))
+            meta = cursor.fetchone()
+            metadata = {'converted_at': meta[0] if meta else 'N/A', 'score': meta[1] if meta else 0}
+            
+            # Get links  
+            cursor = self.db.conn.execute(
+                'SELECT target_page_id, resolution_status FROM links WHERE source_page_id = ? LIMIT 20',
+                (page_name.replace('_', ':'),))
+            links = {'outgoing': [{'target': r[0], 'status': r[1]} for r in cursor.fetchall()]}
+            
+            # Get images
+            cursor = self.db.conn.execute(
+                'SELECT local_filename, status, alt_text_quality FROM images WHERE page_id = ? LIMIT 20',
+                (page_name.replace('_', ':'),))
+            images = [{'name': r[0], 'status': r[1], 'quality': r[2]} for r in cursor.fetchall()]
+            
+            # Get history
+            cursor = self.db.conn.execute(
+                'SELECT converted_at, html_wcag_aa_score FROM pages WHERE page_id = ? ORDER BY converted_at DESC LIMIT 5',
+                (page_name.replace('_', ':'),))
+            history = [{'date': r[0], 'score': r[1]} for r in cursor.fetchall()]
+            
+            return metadata, links, images, history
+        except:
+            return {}, {}, [], []
+
     def _build_combined_detail_html(self, page_name: str, html_report: Dict, docx_report: Dict,
                                     html_stats: Optional[Dict] = None, docx_stats: Optional[Dict] = None) -> str:
         """Build combined detailed report HTML for both HTML and DOCX"""
 
         # Build navigation sidebar
         page_list = list(self.page_reports.keys())
-        sidebar_html = get_navigation_sidebar('page_detail', page_list)
+        # Check if broken links report exists (output_dir is already the reports directory)
+        broken_links_exists = (self.output_dir / 'broken_links_report.html').exists()
+        sidebar_html = get_navigation_sidebar('page_detail', page_list, show_broken_links=broken_links_exists)
 
         html_stats = html_stats or {}
         docx_stats = docx_stats or {}
+
+        # Get enhanced data from database
+        metadata, links, images, history = self._get_enhanced_data(page_name)
         
         # HTML scores
         html_aa = html_report['score_aa']
@@ -374,142 +308,7 @@ class ReportGenerator:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accessibility Report: {html_lib.escape(page_name)}</title>
-    {get_sidebar_css()}
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.6;
-            color: #1a1a1a;
-            background: #f5f5f5;
-        }}
-
-        .main-content {{
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }}
-        
-        header {{
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        
-        h1 {{
-            font-size: 2em;
-            margin-bottom: 1rem;
-        }}
-        
-        .format-sections {{
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }}
-        
-        .format-section {{
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        
-        .format-section h2 {{
-            font-size: 1.5em;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e0e0e0;
-        }}
-        
-        .scores {{
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }}
-        
-        .score {{
-            flex: 1;
-            text-align: center;
-        }}
-        
-        .score-value {{
-            font-size: 2em;
-            font-weight: bold;
-            padding: 0.5rem;
-            border-radius: 8px;
-        }}
-        
-        .score-label {{
-            font-size: 0.8em;
-            color: #666;
-            margin-top: 0.5rem;
-        }}
-        
-        .issue-section {{
-            margin-top: 1.5rem;
-        }}
-        
-        .issue-section h3 {{
-            font-size: 1.1em;
-            margin-bottom: 0.5rem;
-        }}
-        
-        .issue-list {{
-            list-style: none;
-            font-size: 0.9em;
-        }}
-        
-        .issue-list li {{
-            padding: 0.3rem 0;
-        }}
-        
-        .error {{ color: #cc0000; }}
-        .error-aaa {{ color: #9900cc; }}
-        .warning {{ color: #ff8800; }}
-        .success {{ color: #00aa00; }}
-        
-        .back-link {{
-            display: inline-block;
-            margin-bottom: 1rem;
-            color: #0066cc;
-            text-decoration: none;
-        }}
-        
-        .back-link:hover {{
-            text-decoration: underline;
-        }}
-        
-        .file-links {{
-            background: #e6f2ff;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            text-align: center;
-        }}
-        
-        .file-links a {{
-            display: inline-block;
-            margin: 0 1rem;
-            padding: 0.5rem 1rem;
-            background: white;
-            border-radius: 4px;
-            text-decoration: none;
-            color: #0066cc;
-            font-weight: bold;
-        }}
-        
-        .file-links a:hover {{
-            background: #f0f0f0;
-        }}
-    </style>
+{get_css_links()}
 </head>
 <body class="has-sidebar">
     {sidebar_html}
@@ -517,19 +316,53 @@ class ReportGenerator:
     <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
 
     <div class="main-content">
-        <a href="accessibility_report.html" class="back-link">← Back to Dashboard</a>
-
-        <div class="file-links">
-            <a href="../html/{page_name}.html" target="_blank">📄 View HTML Version</a>
-            <a href="../docx/{page_name}.docx" target="_blank">📄 Download DOCX Version</a>
-            <a href="../markdown/{page_name}.md" target="_blank">📝 View Markdown Source</a>
-        </div>
+        <a href="accessibility_report.html" class="back-link" aria-label="Back to Dashboard">← Back to Dashboard</a>
 
         <header>
             <h1>{html_lib.escape(page_name)}</h1>
         </header>
-    
-    <div class="format-sections">
+
+
+        <!-- Enhanced Sections -->
+        <div class="enhanced-grid">
+            <!-- Quick Actions -->
+            <section class="enhanced-section quick-actions" aria-labelledby="quick-actions-heading">
+                <h3 id="quick-actions-heading">Quick Actions</h3>
+                <nav class="actions-list" aria-label="Page format options">
+                    <a href="../html/{page_name}.html" class="action-link" target="_blank" rel="noopener noreferrer" aria-label="View HTML version in new tab">📄 View HTML</a>
+                    <a href="../docx/{page_name}.docx" class="action-link" download aria-label="Download DOCX version">📝 Download DOCX</a>
+                    <a href="../markdown/{page_name}.md" class="action-link" target="_blank" rel="noopener noreferrer" aria-label="View Markdown source in new tab">📊 View Markdown</a>
+                </nav>
+            </section>
+            
+            <!-- Metadata -->
+            {f'''<div class="enhanced-section metadata">
+                <h3>Page Info</h3>
+                <div class="meta-grid">
+                    <div><strong>Converted:</strong> {metadata.get("converted_at", "N/A")}</div>
+                    <div><strong>Score:</strong> {metadata.get("score", 0)}%</div>
+                </div>
+            </div>''' if metadata else ''}
+            
+            <!-- Links -->
+            {f'''<div class="enhanced-section links-info">
+                <h3>Links ({len(links.get("outgoing", []))} outgoing)</h3>
+                <div class="links-list">
+                    {" ".join([f'<div class="link-item {'link-ok' if l.get('status') == 'found' else 'link-broken'}">{'✓' if l.get('status') == 'found' else '✗'} {l.get("target", "")[:30]}</div>' for l in links.get("outgoing", [])[:10]])}
+                </div>
+            </div>''' if links.get("outgoing") else ''}
+            
+            <!-- Images -->
+            {f'''<div class="enhanced-section images-info">
+                <h3>Images ({len(images)})</h3>
+                <div class="images-list">
+                    {" ".join([f'<div class="img-item">{i.get("name", "N/A")} - <span class="{'ok' if i.get('status') in ['success', 'cached'] else 'bad'}">{i.get("status", "")}</span></div>' for i in images[:5]])}
+                </div>
+            </div>''' if images else ''}
+        </div>
+
+        
+        <div class="format-sections">
         <!-- HTML Report -->
         <div class="format-section">
             <h2>HTML Version</h2>

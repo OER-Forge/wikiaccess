@@ -1,0 +1,322 @@
+/* Accessibility Report Specific Styles */
+
+/* Dashboard tables */
+.dashboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.dashboard-table th {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.dashboard-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.dashboard-table tr:hover {
+    background: #f8f9fa;
+}
+
+.dashboard-table a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.dashboard-table a:hover {
+    text-decoration: underline;
+}
+
+/* Statistics cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 0.5rem;
+}
+
+.stat-success .stat-value {
+    color: #28a745;
+}
+
+.stat-warning .stat-value {
+    color: #ff8800;
+}
+
+.stat-danger .stat-value {
+    color: #dc3545;
+}
+
+/* Critical issues */
+.critical-issues {
+    margin-bottom: 2rem;
+}
+
+.issues-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.issue-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid;
+}
+
+.issue-critical {
+    border-color: #dc3545;
+}
+
+.issue-high {
+    border-color: #ff8800;
+}
+
+.issue-medium {
+    border-color: #ffcc00;
+}
+
+.issue-low {
+    border-color: #3498db;
+}
+
+.issue-card h3 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.issue-description {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.view-all-link {
+    display: inline-block;
+    margin-top: 1rem;
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.view-all-link:hover {
+    text-decoration: underline;
+}
+
+/* Navigation tiles */
+.navigation-tiles {
+    margin-top: 2rem;
+}
+
+.tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.nav-tile {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: block;
+}
+
+.nav-tile:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.tile-icon {
+    font-size: 3em;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.nav-tile h3 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.nav-tile p {
+    color: #666;
+    font-size: 0.95em;
+}
+
+.nav-tile-pages {
+    cursor: default;
+}
+
+.nav-tile-pages:hover {
+    transform: none;
+}
+
+.page-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 1rem;
+}
+
+.page-list li {
+    margin-bottom: 0.5rem;
+}
+
+.page-list a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.page-list a:hover {
+    text-decoration: underline;
+}
+
+/* Hub-specific styles */
+.critical-issues h2 {
+    color: #dc3545;
+}
+
+.critical-issues.all-clear h2 {
+    color: #28a745;
+}
+
+.all-clear-message {
+    text-align: center;
+    padding: 3rem;
+    font-size: 1.2em;
+    color: #28a745;
+}
+
+.issue-list {
+    margin: 1rem 0;
+}
+
+.issue-item {
+    padding: 0.75rem;
+    background: white;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.issue-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.issue-page {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.quick-fix {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #e7f3ff;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.suggestion {
+    flex: 1;
+    font-size: 0.9em;
+    color: #0066cc;
+}
+
+.copy-btn {
+    padding: 0.25rem 0.75rem;
+    background: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.copy-btn:hover {
+    background: #0052a3;
+}
+
+.copy-btn.copied {
+    background: #28a745;
+}
+
+.score-display {
+    font-size: 0.9em;
+}
+
+.score-bad {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.issue-count {
+    background: #ffc107;
+    color: #333;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.fix-link {
+    color: #0066cc;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.fix-link:hover {
+    text-decoration: underline;
+}
+
+.more-items {
+    margin-top: 1rem;
+    font-style: italic;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.error-detail {
+    font-size: 0.85em;
+    color: #999;
+    font-style: italic;
+}
+
+/* Statistics Dashboard section */
+.statistics-dashboard {
+    margin-bottom: 2rem;
+}
