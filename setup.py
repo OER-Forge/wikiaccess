@@ -33,7 +33,6 @@ setup(
         "beautifulsoup4>=4.9.0",
         "lxml>=4.6.0",
         "Pillow>=10.0.0",
-        "latex2mathml>=3.0.0",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
