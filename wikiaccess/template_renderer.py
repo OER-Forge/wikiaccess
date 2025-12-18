@@ -170,3 +170,37 @@ class TemplateRenderer:
         """
         template = self.env.get_template("image_report.html")
         return template.render(images=images)
+
+    def render_broken_links_report(self, links: List[Dict[str, Any]], css_links: str,
+                                   navigation: str, header: str, stats: str) -> str:
+        """Render broken links report template.
+
+        Args:
+            links: List of broken links with target, count, sources
+            css_links: CSS link tags
+            navigation: Navigation HTML
+            header: Header HTML
+            stats: Statistics HTML
+
+        Returns:
+            Rendered HTML string
+        """
+        template = self.env.get_template("broken_links_report.html")
+
+        # Format links for template
+        formatted_links = []
+        for link in links:
+            sources = link.get('referenced_by', '').split(',') if link.get('referenced_by') else []
+            formatted_links.append({
+                'target': link['target_page_id'],
+                'count': link['reference_count'],
+                'sources': [s.strip() for s in sources]
+            })
+
+        return template.render(
+            links=formatted_links,
+            css_links=Markup(css_links),
+            navigation=Markup(navigation),
+            header=Markup(header),
+            stats=Markup(stats)
+        )

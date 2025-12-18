@@ -19,6 +19,7 @@ from .image_reporting import ImageReportGenerator
 from .hub_reporting import HubReportGenerator
 from .report_components import get_breadcrumb_navigation, build_report_header, build_stat_cards
 from .static_helper import get_css_links
+from .template_renderer import TemplateRenderer
 
 
 class ReportRegenerator:
@@ -185,7 +186,7 @@ class ReportRegenerator:
             return None
 
     def regenerate_broken_links_report(self, db: ConversionDatabase) -> Optional[str]:
-        """Regenerate comprehensive broken links report.
+        """Regenerate comprehensive broken links report using Jinja2 templates.
 
         Args:
             db: ConversionDatabase instance
@@ -202,10 +203,7 @@ class ReportRegenerator:
 
             print(f"🔗 Regenerating broken links report ({len(all_broken)} links)...")
 
-            # Build HTML report
-            reports_dir = self.reports_dir
-            report_path = reports_dir / 'broken_links_report.html'
-
+            # Build report components
             nav_html = get_breadcrumb_navigation('broken_links', page_list=page_names_list, show_broken_links=True)
             header_html = build_report_header(
                 title="🔗 Broken Links Report",
@@ -221,57 +219,20 @@ class ReportRegenerator:
                 {'value': sum(link['reference_count'] for link in all_broken), 'label': 'Total References', 'color': '#ff8800'}
             ], grid_size='narrow')
 
-            # Build broken links cards
-            links_html = []
-            for link in all_broken:
-                target = link['target_page_id']
-                ref_count = link['reference_count']
-                referenced_by = link['referenced_by'].split(',') if link['referenced_by'] else []
+            css_links = get_css_links()
 
-                links_html.append(f'''
-            <div class="report-card bordered critical">
-                <h3 class="report-card-title">Missing Page: {target}</h3>
-                <p><strong>Referenced {ref_count} times by:</strong></p>
-                <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                    {' '.join(f'<span class="report-badge danger">{ref}</span>' for ref in referenced_by)}
-                </div>
-            </div>''')
+            # Use template renderer
+            template_renderer = TemplateRenderer(str(self.output_dir))
+            html_content = template_renderer.render_broken_links_report(
+                links=all_broken,
+                css_links=css_links,
+                navigation=nav_html,
+                header=header_html,
+                stats=stats_html
+            )
 
-            links_section = '\n'.join(links_html)
-
-            html_content = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Broken Links Report - WikiAccess</title>
-{get_css_links()}
-</head>
-<body>
-    {nav_html}
-
-    <div class="report-container">
-        <nav class="report-breadcrumb" aria-label="Breadcrumb"><a href="index.html" class="report-breadcrumb-item">🏠 Home</a><span class="report-breadcrumb-separator">›</span><span class="report-breadcrumb-item active">Broken Links</span></nav>
-        {header_html}
-
-        <section class="report-section">
-            <h2 class="report-section-title">Summary Statistics</h2>
-            <div class="report-grid narrow">
-        {stats_html}
-        </section>
-
-        <section class="report-section">
-            <h2 class="report-section-title">Broken Links Details</h2>
-            <div class="report-grid wide">
-                {links_section}
-            </div>
-        </section>
-    </div>
-
-    <script src="js/reports.js"></script>
-</body>
-</html>'''
-
+            # Write report
+            report_path = self.reports_dir / 'broken_links_report.html'
             with open(report_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
 
