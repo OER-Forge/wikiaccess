@@ -135,6 +135,69 @@ class TemplateRenderer:
             versions=versions
         )
 
+    def render_image_report(self, css_links: str, navigation: str, header: str,
+                            statistics: str, page_options: str, type_options: str,
+                            image_table: str, breadcrumb_javascript: str) -> str:
+        """Render image report template.
+
+        Args:
+            css_links: CSS link tags
+            navigation: Navigation HTML
+            header: Header HTML
+            statistics: Statistics HTML
+            page_options: Page filter options HTML
+            type_options: Type filter options HTML
+            image_table: Image table HTML
+            breadcrumb_javascript: Breadcrumb JavaScript
+
+        Returns:
+            Rendered HTML string
+        """
+        template = self.env.get_template("image_report.html")
+        return template.render(
+            css_links=Markup(css_links),
+            navigation=Markup(navigation),
+            header=Markup(header),
+            statistics=Markup(statistics),
+            page_options=Markup(page_options),
+            type_options=Markup(type_options),
+            image_table=Markup(image_table),
+            breadcrumb_javascript=Markup(breadcrumb_javascript)
+        )
+
+    def render_landing_hub(self, css_links: str, navigation: str, header: str,
+                           jump_links: str, critical_issues: str, statistics: str,
+                           navigation_tiles: str, breadcrumb_javascript: str,
+                           hub_javascript: str) -> str:
+        """Render landing hub template.
+
+        Args:
+            css_links: CSS link tags
+            navigation: Navigation HTML
+            header: Header HTML
+            jump_links: Jump-to-section links HTML
+            critical_issues: Critical issues section HTML
+            statistics: Statistics section HTML
+            navigation_tiles: Navigation tiles HTML
+            breadcrumb_javascript: Breadcrumb JavaScript
+            hub_javascript: Hub-specific JavaScript
+
+        Returns:
+            Rendered HTML string
+        """
+        template = self.env.get_template("landing_hub.html")
+        return template.render(
+            css_links=Markup(css_links),
+            navigation=Markup(navigation),
+            header=Markup(header),
+            jump_links=Markup(jump_links),
+            critical_issues=Markup(critical_issues),
+            statistics=Markup(statistics),
+            navigation_tiles=Markup(navigation_tiles),
+            breadcrumb_javascript=Markup(breadcrumb_javascript),
+            hub_javascript=Markup(hub_javascript)
+        )
+
     def render_accessibility_dashboard(self, pages: List[Dict[str, Any]], css_links: str,
                                       navigation: str, header: str, stats: str,
                                       breadcrumb_javascript: str) -> str:

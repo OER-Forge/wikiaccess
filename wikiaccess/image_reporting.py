@@ -23,6 +23,7 @@ from .report_components import (
     build_report_header, build_stat_cards
 )
 from .static_helper import get_css_links
+from .template_renderer import TemplateRenderer
 
 
 class ImageReportGenerator:
@@ -33,6 +34,7 @@ class ImageReportGenerator:
         self.reports_dir = self.output_dir / 'reports'
         self.reports_dir.mkdir(parents=True, exist_ok=True)
         self.images_dir = self.output_dir / 'images'
+        self.template_renderer = TemplateRenderer(str(self.output_dir))
 
     def generate_image_report(self, image_details: List[Dict], page_list: List[str] = None) -> str:
         """
@@ -138,59 +140,23 @@ class ImageReportGenerator:
         # Build sortable table
         table_html = self._build_sortable_table(image_details)
 
-        # Complete HTML page
-        html = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Download Report - WikiAccess</title>
-{get_css_links()}
-</head>
-<body>
-    {nav_html}
+        # Build page filter options
+        page_options = "".join(f'<option value="{page}">{page}</option>' for page in sorted(by_page.keys()))
 
-    <div class="report-container">
-        {header_html}
+        # Build type filter options
+        type_options = "".join(f'<option value="{img_type}">{img_type}</option>' for img_type in sorted(by_type.keys()))
 
-        {stats_html}
-
-        <section class="table-section">
-            <h2>Detailed Image Table</h2>
-            <div class="table-controls">
-                <label for="filter-status">Filter by Status:</label>
-                <select id="filter-status" onchange="filterTable()" aria-label="Filter images by status">
-                    <option value="all">All</option>
-                    <option value="success">Success</option>
-                    <option value="cached">Cached</option>
-                    <option value="failed">Failed</option>
-                    <option value="error">Error</option>
-                    <option value="skipped">Skipped</option>
-                </select>
-
-                <label for="filter-alt-quality">Filter by Alt-Text:</label>
-                <select id="filter-alt-quality" onchange="filterTable()" aria-label="Filter images by alt-text quality">
-                    <option value="all">All</option>
-                    <option value="missing">⚠️ Missing</option>
-                    <option value="auto-generated">🤖 Auto-generated</option>
-                    <option value="manual">✓ Manual</option>
-                </select>
-
-                <label for="filter-page">Filter by Page:</label>
-                <select id="filter-page" onchange="filterTable()" aria-label="Filter images by page">
-                    <option value="all">All Pages</option>
-                    {"".join(f'<option value="{page}">{page}</option>' for page in sorted(by_page.keys()))}
-                </select>
-            </div>
-
-            {table_html}
-        </section>
-    </div>
-
-    {get_breadcrumb_javascript()}
-    {self._get_javascript()}
-</body>
-</html>'''
+        # Use template renderer
+        html = self.template_renderer.render_image_report(
+            css_links=get_css_links(),
+            navigation=nav_html,
+            header=header_html,
+            statistics=stats_html,
+            page_options=page_options,
+            type_options=type_options,
+            image_table=table_html,
+            breadcrumb_javascript=get_breadcrumb_javascript() + self._get_javascript()
+        )
         return html
 
     def _build_statistics_dashboard(self, total, success, failed, skipped,

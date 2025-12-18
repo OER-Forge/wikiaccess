@@ -21,6 +21,7 @@ from .report_components import (
     build_report_header, build_stat_cards
 )
 from .static_helper import get_css_links
+from .template_renderer import TemplateRenderer
 
 
 class HubReportGenerator:
@@ -30,6 +31,7 @@ class HubReportGenerator:
         self.output_dir = Path(output_dir)
         self.reports_dir = self.output_dir / 'reports'
         self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.template_renderer = TemplateRenderer(str(self.output_dir))
 
     def generate_hub(self, page_reports: Dict, image_details: List[Dict], link_stats: Optional[Dict] = None) -> str:
         """
@@ -198,7 +200,7 @@ class HubReportGenerator:
         return stats
 
     def _build_hub_html(self, critical_issues: Dict, stats: Dict, page_reports: Dict, link_stats: Optional[Dict] = None) -> str:
-        """Build complete landing hub HTML using component system"""
+        """Build complete landing hub HTML using template renderer"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # Build breadcrumb navigation
@@ -231,39 +233,18 @@ class HubReportGenerator:
         # Build navigation tiles
         nav_tiles_html = self._build_navigation_tiles(page_reports, link_stats)
 
-        return f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WikiAccess - Accessibility Report Hub</title>
-{get_css_links()}
-</head>
-<body>
-    {nav_html}
-
-    <div class="report-container">
-        {header_html}
-
-        {jump_html}
-
-        <div id="critical-issues">
-            {critical_html}
-        </div>
-
-        <div id="statistics">
-            {stats_html}
-        </div>
-
-        <div id="navigation">
-            {nav_tiles_html}
-        </div>
-    </div>
-
-    {get_breadcrumb_javascript()}
-    {self._get_hub_javascript()}
-</body>
-</html>'''
+        # Use template renderer
+        return self.template_renderer.render_landing_hub(
+            css_links=get_css_links(),
+            navigation=nav_html,
+            header=header_html,
+            jump_links=jump_html,
+            critical_issues=critical_html,
+            statistics=stats_html,
+            navigation_tiles=nav_tiles_html,
+            breadcrumb_javascript=get_breadcrumb_javascript(),
+            hub_javascript=self._get_hub_javascript()
+        )
 
     def _build_critical_issues_section(self, critical: Dict) -> str:
         """Build critical issues section with quick-fix suggestions"""
