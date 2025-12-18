@@ -18,9 +18,8 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
 from .markdown_converter import MarkdownConverter
-from .accessibility_checker import AccessibilityChecker
-from .report_generator import ReportGenerator
-from .reporting import ReportGenerator as LegacyReportGenerator
+from .accessibility import AccessibilityChecker
+from .reporting import ReportGenerator
 from .accessibility_handler import AccessibilityIssueHandler
 from .database import ConversionDatabase
 from .link_rewriter import LinkRewriter
@@ -172,7 +171,7 @@ class ConversionOrchestrator:
         result = {'page_name': page_name}
 
         # Check if should skip
-        if skip_recent and self.db and self.db.was_recently_converted(page_name):
+        if skip_recent and self.db and self.db.was_recently_converted(self.wiki_url, page_name):
             result['skipped'] = True
             return result
 
@@ -228,7 +227,7 @@ class ConversionOrchestrator:
                 page_reports[page_display_name] = result['accessibility']
 
         if page_reports:
-            reporter = LegacyReportGenerator(str(self.output_dir / 'reports'))
+            reporter = ReportGenerator(str(self.output_dir / 'reports'))
             for page_name, accessibility in page_reports.items():
                 reporter.add_page_reports(page_name, accessibility.get('html', {}),
                                         accessibility.get('docx', {}))
