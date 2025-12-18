@@ -557,6 +557,43 @@ class ConversionDatabase:
         """, (batch_id,))
         return [dict(row) for row in cursor.fetchall()]
 
+    def get_all_broken_links(self) -> List[Dict[str, Any]]:
+        """Get all broken (missing) internal links across all batches.
+
+        Returns:
+            List of broken link records from all batches
+        """
+        cursor = self.conn.execute("""
+            SELECT
+                target_page_id,
+                COUNT(*) as reference_count,
+                GROUP_CONCAT(DISTINCT source_page_id) as referenced_by
+            FROM links
+            WHERE link_type = 'internal'
+            AND resolution_status = 'missing'
+            GROUP BY target_page_id
+            ORDER BY reference_count DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def resolve_converted_links(self) -> int:
+        """Mark broken links as 'found' if their target pages have been converted.
+
+        This updates links that were marked as 'missing' but now point to converted pages.
+
+        Returns:
+            Number of links that were updated
+        """
+        cursor = self.conn.execute("""
+            UPDATE links
+            SET resolution_status = 'found'
+            WHERE resolution_status = 'missing'
+            AND link_type = 'internal'
+            AND target_page_id IN (SELECT page_id FROM pages)
+        """)
+        self.conn.commit()
+        return cursor.rowcount
+
     def get_page_links(self, page_id: str, batch_id: str) -> List[Dict[str, Any]]:
         """Get all links from a specific page.
 

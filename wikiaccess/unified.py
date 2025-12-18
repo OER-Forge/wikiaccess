@@ -519,6 +519,58 @@ def convert_multiple_pages(
         dashboard = combined_reporter.generate_dashboard()
         print(f"\n📊 Combined Dashboard: {dashboard}")
 
+        # Regenerate comprehensive accessibility report from ALL pages in database
+        print(f"\n🔧 Regenerating comprehensive report... (db={db is not None}, combined_reporter pages={len(combined_reporter.page_reports)})")
+        if db:
+            try:
+                reports_dir = Path(output_dir) / 'reports'
+                reports_dir.mkdir(parents=True, exist_ok=True)
+
+                # Create fresh reporter and load all pages from database
+                comprehensive_reporter = ReportGenerator(str(reports_dir))
+                all_pages = db.conn.execute('''
+                    SELECT p.page_id, p.html_wcag_aa_score, p.html_wcag_aaa_score,
+                           p.docx_wcag_aa_score, p.docx_wcag_aaa_score
+                    FROM pages p
+                    ORDER BY p.page_id
+                ''').fetchall()
+
+                print(f"\n  Building comprehensive report with {len(all_pages)} pages from database...")
+
+                # Add all pages to the comprehensive report
+                for page_row in all_pages:
+                    page_id = page_row[0]
+                    page_display_name = page_id.replace(':', '_')
+
+                    # Build basic report structure from database
+                    html_report = {
+                        'score_aa': page_row[1] or 0,
+                        'score_aaa': page_row[2] or 0,
+                        'issues_aa': [],
+                        'issues_aaa': [],
+                        'warnings': []
+                    }
+                    docx_report = {
+                        'score_aa': page_row[3] or 0,
+                        'score_aaa': page_row[4] or 0,
+                        'issues_aa': [],
+                        'issues_aaa': [],
+                        'warnings': []
+                    }
+                    comprehensive_reporter.add_page_reports(
+                        page_display_name,
+                        html_report,
+                        docx_report
+                    )
+
+                # Generate the comprehensive report
+                if all_pages:
+                    comprehensive_reporter.generate_detailed_reports()
+                    comprehensive_dashboard = comprehensive_reporter.generate_dashboard()
+                    print(f"📊 Comprehensive Accessibility Dashboard (all {len(all_pages)} pages): {comprehensive_dashboard}")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not regenerate comprehensive report: {e}")
+
     # Generate image report if images were processed
     if converter.image_details:
         print(f"\n{'='*70}\nGenerating Image Report\n{'='*70}")
@@ -590,6 +642,91 @@ def convert_multiple_pages(
         if page_reports:
             hub_path = hub_generator.generate_hub(page_reports, converter.image_details, link_stats)
             print(f"\n🏠 Landing Hub: {hub_path}")
+
+        # Regenerate landing hub with all pages from database (comprehensive version)
+        if db:
+            print(f"\n🔧 Regenerating landing hub with all pages from database...")
+            try:
+                comprehensive_hub_generator = HubReportGenerator(str(output_dir))
+
+                # Query all pages from database
+                all_pages_for_hub = db.conn.execute('''
+                    SELECT p.page_id, p.html_wcag_aa_score, p.html_wcag_aaa_score,
+                           p.docx_wcag_aa_score, p.docx_wcag_aaa_score
+                    FROM pages p
+                    ORDER BY p.page_id
+                ''').fetchall()
+
+                # Build page_reports dict with all pages
+                comprehensive_page_reports = {}
+                for page_row in all_pages_for_hub:
+                    page_id = page_row[0]
+                    page_display_name = page_id.replace(':', '_')
+                    comprehensive_page_reports[page_display_name] = {
+                        'html': {
+                            'score_aa': page_row[1] or 0,
+                            'score_aaa': page_row[2] or 0,
+                        },
+                        'docx': {
+                            'score_aa': page_row[3] or 0,
+                            'score_aaa': page_row[4] or 0,
+                        }
+                    }
+
+                # Generate the comprehensive hub
+                if comprehensive_page_reports:
+                    comprehensive_hub_path = comprehensive_hub_generator.generate_hub(
+                        comprehensive_page_reports,
+                        converter.image_details,
+                        link_stats
+                    )
+                    print(f"🏠 Landing Hub (comprehensive - {len(comprehensive_page_reports)} pages): {comprehensive_hub_path}")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not regenerate comprehensive landing hub: {e}")
+
+        # Regenerate image report with all images from database (comprehensive version)
+        print(f"\n🔧 Regenerating image report with all images from database...")
+        try:
+            comprehensive_image_reporter = ImageReportGenerator(str(output_dir))
+
+            # Query all images from database
+            all_images = db.conn.execute('''
+                SELECT page_id, type, source_url, local_filename, status,
+                       file_size, dimensions, alt_text, error_message, downloaded_at
+                FROM images
+                ORDER BY downloaded_at DESC
+            ''').fetchall()
+
+            # Convert database rows to image_details format
+            comprehensive_image_details = []
+            output_path = Path(output_dir)
+            for img_row in all_images:
+                local_filename = img_row[3]
+                local_path = str(output_path / 'images' / local_filename) if local_filename else None
+
+                img_dict = {
+                    'page_id': img_row[0],
+                    'type': img_row[1],
+                    'source_url': img_row[2],
+                    'local_filename': local_filename,
+                    'local_path': local_path,
+                    'status': img_row[4],
+                    'file_size': img_row[5],
+                    'dimensions': img_row[6],
+                    'alt_text': img_row[7],
+                    'error_message': img_row[8],
+                    'downloaded_at': img_row[9]
+                }
+                comprehensive_image_details.append(img_dict)
+
+            # Generate the comprehensive image report
+            if comprehensive_image_details:
+                comprehensive_image_report_path = comprehensive_image_reporter.generate_image_report(
+                    comprehensive_image_details
+                )
+                print(f"📸 Image Report (comprehensive - {len(comprehensive_image_details)} images): {comprehensive_image_report_path}")
+        except Exception as e:
+            print(f"⚠️  Warning: Could not regenerate comprehensive image report: {e}")
 
     # Complete batch in database
     if db:

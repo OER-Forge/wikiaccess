@@ -289,24 +289,24 @@ class ReportGenerator:
         ])
 
         # HTML scores
-        html_aa = html_report['score_aa']
-        html_aaa = html_report['score_aaa']
+        html_aa = html_report.get('score_aa', 0)
+        html_aaa = html_report.get('score_aaa', 0)
         html_aa_badge = self._get_score_badge(html_aa)
         html_aaa_badge = self._get_score_badge(html_aaa)
 
         # DOCX scores
-        docx_aa = docx_report['score_aa']
-        docx_aaa = docx_report['score_aaa']
+        docx_aa = docx_report.get('score_aa', 0)
+        docx_aaa = docx_report.get('score_aaa', 0)
         docx_aa_badge = self._get_score_badge(docx_aa)
         docx_aaa_badge = self._get_score_badge(docx_aaa)
 
         # Build issue lists
-        html_issues_aa_html = self._build_issue_list(html_report['issues_aa'], 'error')
-        html_issues_aaa_html = self._build_issue_list(html_report['issues_aaa'], 'error-aaa')
-        html_warnings_html = self._build_issue_list(html_report['warnings'], 'warning')
-        docx_issues_aa_html = self._build_issue_list(docx_report['issues_aa'], 'error')
-        docx_issues_aaa_html = self._build_issue_list(docx_report['issues_aaa'], 'error-aaa')
-        docx_warnings_html = self._build_issue_list(docx_report['warnings'], 'warning')
+        html_issues_aa_html = self._build_issue_list(html_report.get('issues_aa', []), 'error')
+        html_issues_aaa_html = self._build_issue_list(html_report.get('issues_aaa', []), 'error-aaa')
+        html_warnings_html = self._build_issue_list(html_report.get('warnings', []), 'warning')
+        docx_issues_aa_html = self._build_issue_list(docx_report.get('issues_aa', []), 'error')
+        docx_issues_aaa_html = self._build_issue_list(docx_report.get('issues_aaa', []), 'error-aaa')
+        docx_warnings_html = self._build_issue_list(docx_report.get('warnings', []), 'warning')
         
         return f'''<!DOCTYPE html>
 <html lang="en">

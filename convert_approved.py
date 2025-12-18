@@ -131,6 +131,24 @@ def main():
     batch_id = f"discovered_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     db.start_batch(batch_id, args.wiki_url)
 
+    # Determine the discovery depth of the approved pages (they should all be at the same depth)
+    discovery_depths = [db.conn.execute(
+        'SELECT discovery_depth FROM discovered_pages WHERE target_page_id = ?',
+        (page_id,)
+    ).fetchone() for page_id in approved_pages]
+
+    # Get the max depth from the approved pages
+    max_approved_depth = max([d[0] for d in discovery_depths if d], default=0)
+
+    print(f"  ℹ️  Approved pages depth info: {len(approved_pages)} pages, max_depth={max_approved_depth}")
+
+    # Update batch with the discovery depth (next depth will be max_approved_depth + 1)
+    db.conn.execute(
+        'UPDATE conversion_batches SET discovery_depth = ? WHERE batch_id = ?',
+        (max_approved_depth, batch_id)
+    )
+    db.conn.commit()
+
     try:
         print(f"\nStarting conversion batch: {batch_id}\n")
 
