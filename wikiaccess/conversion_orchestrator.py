@@ -63,6 +63,7 @@ class ConversionOrchestrator:
         self.output_dir = Path(output_dir)
         self.db = db
         self.max_discovery_depth = max_discovery_depth
+        self.link_stats = {}  # Store link statistics for reporting
 
         # Initialize components
         client = DokuWikiHTTPClient(wiki_url)
@@ -136,10 +137,10 @@ class ConversionOrchestrator:
             self._generate_reports(batch_id, results)
 
         # Run link rewriting
-        link_stats = self._rewrite_links(batch_id, list(results.keys()))
+        self.link_stats = self._rewrite_links(batch_id, list(results.keys()))
 
         # Run discovery if enabled and links were broken
-        if enable_discovery and link_stats['links_broken'] > 0:
+        if enable_discovery and self.link_stats['links_broken'] > 0:
             self._run_discovery(batch_id)
 
         # Complete batch
@@ -154,7 +155,7 @@ class ConversionOrchestrator:
             'batch_id': batch_id,
             'results': results,
             'statistics': statistics,
-            'link_stats': link_stats
+            'link_stats': self.link_stats
         }
 
     def _convert_single_page(self, page_name: str, formats: List[str],
@@ -347,7 +348,7 @@ class ConversionOrchestrator:
         # Copy static CSS and JS files to reports directory
         copy_static_files(str(self.output_dir))
 
-        self.report_regenerator.regenerate_all(self.db)
+        self.report_regenerator.regenerate_all(self.db, link_stats=self.link_stats)
 
     def resolve_broken_links(self) -> int:
         """Resolve broken links that now point to converted pages.

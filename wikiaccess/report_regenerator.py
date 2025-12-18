@@ -297,6 +297,28 @@ class ReportRegenerator:
         """
         print(f"\n{'='*70}\nRegenerating All Reports\n{'='*70}\n")
 
+        # Gather image details if not provided
+        if not image_details:
+            all_images = db.get_all_images_for_report()
+            if all_images:
+                image_details = []
+                for img_data in all_images:
+                    local_filename = img_data['local_filename']
+                    local_path = str(self.output_dir / 'images' / local_filename) if local_filename else None
+                    image_details.append({
+                        'page_id': img_data['page_id'],
+                        'type': img_data['type'],
+                        'source_url': img_data['source_url'],
+                        'local_filename': local_filename,
+                        'local_path': local_path,
+                        'status': img_data['status'],
+                        'file_size': img_data['file_size'],
+                        'dimensions': img_data['dimensions'],
+                        'alt_text': img_data['alt_text'],
+                        'error_message': img_data['error_message'],
+                        'downloaded_at': img_data['downloaded_at']
+                    })
+
         results = {
             'accessibility': self.regenerate_accessibility_report(db),
             'image': self.regenerate_image_report(db),
