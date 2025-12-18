@@ -519,7 +519,12 @@ class MarkdownConverter:
 
         # Add accessibility controls toolbar before content (if enabled)
         if self.include_accessibility_toolbar and '<body>' in html_content:
-            accessibility_toolbar = '''    <div class="accessibility-toolbar" role="toolbar" aria-label="Accessibility controls">
+            accessibility_toolbar = '''    <!-- Accessibility Toolbar Toggle -->
+    <button id="a11y-toggle-btn" class="a11y-toggle-btn" onclick="A11y.toggleToolbar()"
+            aria-label="Show accessibility controls" title="Click to show accessibility options">ℹ</button>
+
+    <!-- Accessibility Toolbar (Hidden by default) -->
+    <div id="a11y-toolbar-content" class="accessibility-toolbar hidden" role="toolbar" aria-label="Accessibility controls">
         <!-- Screen reader announcement region -->
         <div id="a11y-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
@@ -888,6 +893,18 @@ class MarkdownConverter:
             this.announceToScreenReader('Accessibility preferences reset to default');
             this.updateAllControls();
           }
+        },
+
+        // Toggle toolbar visibility
+        toggleToolbar: function() {
+          const toolbar = document.getElementById('a11y-toolbar-content');
+          const toggleBtn = document.getElementById('a11y-toggle-btn');
+          if (toolbar) {
+            toolbar.classList.toggle('hidden');
+            const isHidden = toolbar.classList.contains('hidden');
+            toggleBtn.setAttribute('aria-label', isHidden ? 'Show accessibility controls' : 'Hide accessibility controls');
+            this.announceToScreenReader(isHidden ? 'Accessibility toolbar hidden' : 'Accessibility toolbar shown');
+          }
         }
       };
 
@@ -1012,6 +1029,8 @@ class MarkdownConverter:
             font-size: 16px;
             scroll-behavior: smooth;
             color-scheme: light dark;
+            background: var(--bg-primary);
+            transition: background-color 0.3s ease;
         }
 
         body {
@@ -1019,13 +1038,65 @@ class MarkdownConverter:
             font-size: 1.125rem;
             line-height: var(--line-height);
             letter-spacing: var(--letter-spacing);
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 2rem;
             color: var(--text-primary);
             background: var(--bg-primary);
             overflow-x: hidden;
             transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Hidden state for toolbar */
+        .accessibility-toolbar.hidden {
+            display: none !important;
+        }
+
+        /* Toggle button - floating at top right */
+        .a11y-toggle-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border: 2px solid #333;
+            background: #f0f0f0;
+            color: #333;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .a11y-toggle-btn:hover {
+            background: #e0e0e0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .a11y-toggle-btn:focus {
+            outline: 3px solid #333;
+            outline-offset: 2px;
+        }
+
+        /* Dark mode button */
+        [data-theme="dark"] .a11y-toggle-btn {
+            border-color: #e0e0e0;
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .a11y-toggle-btn:hover {
+            background: #444;
+        }
+
+        [data-theme="dark"] .a11y-toggle-btn:focus {
+            outline-color: #e0e0e0;
         }
 
         /* Accessibility Toolbar - Modern Structure */
