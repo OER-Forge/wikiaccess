@@ -594,6 +594,103 @@ class ConversionDatabase:
         self.conn.commit()
         return cursor.rowcount
 
+    # Report Generation - Abstracted Queries
+
+    def get_all_pages_with_scores(self) -> List[Dict[str, Any]]:
+        """Get all pages with accessibility scores for report generation.
+
+        Returns:
+            List of dicts with page_id, html_wcag_aa_score, html_wcag_aaa_score,
+                        docx_wcag_aa_score, docx_wcag_aaa_score
+        """
+        cursor = self.conn.execute("""
+            SELECT page_id, html_wcag_aa_score, html_wcag_aaa_score,
+                   docx_wcag_aa_score, docx_wcag_aaa_score
+            FROM pages
+            ORDER BY page_id
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_all_images_for_report(self) -> List[Dict[str, Any]]:
+        """Get all images with metadata for comprehensive image report.
+
+        Returns:
+            List of dicts with complete image information
+        """
+        cursor = self.conn.execute("""
+            SELECT page_id, type, source_url, local_filename, status,
+                   file_size, dimensions, alt_text, error_message, downloaded_at
+            FROM images
+            ORDER BY downloaded_at DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_pages_with_broken_links(self) -> List[str]:
+        """Get list of all pages that have broken links.
+
+        Returns:
+            List of source page IDs with broken links
+        """
+        cursor = self.conn.execute("""
+            SELECT DISTINCT source_page_id
+            FROM links
+            WHERE resolution_status = 'missing'
+            AND link_type = 'internal'
+            ORDER BY source_page_id
+        """)
+        return [row[0] for row in cursor.fetchall()]
+
+    # Accessibility Operations - Batch Storage
+
+    def store_page_accessibility_issues(self, page_id: str, batch_id: str,
+                                       accessibility_results: Dict[str, Any]) -> None:
+        """Store accessibility issues for a page in batch format.
+
+        This is the single point for storing accessibility issues from either
+        convert_wiki_page or convert_multiple_pages.
+
+        Args:
+            page_id: Page identifier
+            batch_id: Batch identifier
+            accessibility_results: Dict with 'html' and 'docx' keys, each containing
+                                 'score_aa', 'score_aaa', 'issues_aa', 'issues_aaa'
+        """
+        for format_type in ['html', 'docx']:
+            if format_type not in accessibility_results:
+                continue
+
+            format_results = accessibility_results[format_type]
+            format_upper = format_type.upper()
+
+            # Store AA and AAA level issues
+            for level in ['AA', 'AAA']:
+                issues_key = f'issues_{level.lower()}'
+                issues = format_results.get(issues_key, [])
+
+                for issue in issues:
+                    if isinstance(issue, dict):
+                        issue_data = {
+                            'page_id': page_id,
+                            'batch_id': batch_id,
+                            'format': format_upper,
+                            'level': level,
+                            'issue_code': issue.get('code', 'unknown'),
+                            'issue_message': issue.get('message', ''),
+                            'element_selector': issue.get('selector', '')
+                        }
+                    else:
+                        # Issue is a string
+                        issue_data = {
+                            'page_id': page_id,
+                            'batch_id': batch_id,
+                            'format': format_upper,
+                            'level': level,
+                            'issue_code': 'unknown',
+                            'issue_message': str(issue),
+                            'element_selector': ''
+                        }
+                    self.add_accessibility_issue(issue_data)
+
     def get_page_links(self, page_id: str, batch_id: str) -> List[Dict[str, Any]]:
         """Get all links from a specific page.
 
