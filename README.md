@@ -28,7 +28,7 @@ npm install pa11y
 
 ---
 
-## 📋 Full Test Workflow
+## 📋 Complete Test Workflow
 
 ### **Step 1: Create URLS.txt**
 Create a file named `URLS.txt` with one DokuWiki URL per line:
@@ -38,48 +38,70 @@ https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:displacement_and_velocity
 https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:modeling_with_vpython
 ```
 
-### **Step 2: Convert All Pages**
+### **Step 2: Convert Seed Pages**
 ```bash
 python3 convert_from_file_list.py
 ```
 
 This will:
-- ✅ Convert all URLs to HTML, DOCX, and Markdown
+- ✅ Convert all seed URLs to HTML, DOCX, and Markdown
 - 📥 Download all images with alt-text
 - 📊 Test accessibility (WCAG 2.1 AA/AAA)
 - 📁 Organize output in `output/` directory
+- 🔍 Auto-discover pages referenced by broken links
 - 📊 Generate initial reports
 
-### **Step 3: Verify Conversion & Regenerate Reports**
+### **Step 3: Review Discovered Pages**
+```bash
+python3 review_discoveries.py
+```
+
+This will:
+- 📊 Show statistics on discovered pages
+- 🔗 List pages found from broken links
+- ⭐ Let you approve/reject each discovery
+- 💾 Save approved pages for conversion
+
+**Quick approval of all:**
+```bash
+python3 review_discoveries.py --bulk-approve
+```
+
+### **Step 4: Convert Approved Discovered Pages**
+```bash
+python3 convert_approved.py
+```
+
+This will:
+- ✅ Convert all approved discovered pages
+- 📥 Download their images
+- 📊 Test accessibility
+- 🔍 Auto-discover more pages (next depth)
+- 🔄 Update discovery status in database
+
+### **Step 5: Verify Conversion & Regenerate Reports**
 ```bash
 python3 test_full_workflow.py
 ```
 
 This will:
-- 📊 Show database statistics (pages, images, broken links)
+- 📊 Show updated database statistics
 - 🔄 Regenerate all accessibility reports
-- 📈 Show discovery workflow status
+- 📈 Show discovery workflow progress
 - 📁 List all generated output files
 
-### **Step 4: Analyze Broken Links**
+### **Step 6: Repeat Discovery Cycle (Optional)**
+If more pages were discovered in Step 4, repeat Steps 3-5 until no new pages are found.
+
+### **Step 7: Analyze Final Broken Links**
 ```bash
 python3 test_broken_links.py
 ```
 
 This will:
-- 🔗 Identify broken internal wiki links
-- 📊 Show which pages they're referenced on
-- 💯 Rank broken links by frequency
-
-### **Step 5: (Optional) Auto-Discover & Convert Missing Pages**
-```bash
-python3 wikiaccess/discovery_cli.py --auto-convert
-```
-
-This will:
-- 🔍 Find all pages referenced by broken links
-- ✅ Automatically convert them
-- 🔄 Update broken link status in database
+- 🔗 Identify any remaining broken internal wiki links
+- 📊 Show conversion coverage
+- 💯 Final statistics
 
 ---
 
