@@ -165,6 +165,32 @@ class TemplateRenderer:
             breadcrumb_javascript=Markup(breadcrumb_javascript)
         )
 
+    def render_image_report_v2(self, css_links: str, navigation: str, header: str,
+                              summary_stats: str, images_json: str,
+                              breadcrumb_javascript: str) -> str:
+        """Render modern image report v2 with detail view.
+
+        Args:
+            css_links: CSS link tags
+            navigation: Navigation HTML
+            header: Header HTML
+            summary_stats: Summary statistics HTML
+            images_json: Images data as JSON string
+            breadcrumb_javascript: Breadcrumb JavaScript
+
+        Returns:
+            Rendered HTML string
+        """
+        template = self.env.get_template("image_report_v2.html")
+        return template.render(
+            css_links=Markup(css_links),
+            navigation=Markup(navigation),
+            header=Markup(header),
+            summary_stats=Markup(summary_stats),
+            images_json=images_json,
+            breadcrumb_javascript=Markup(breadcrumb_javascript)
+        )
+
     def render_landing_hub(self, css_links: str, navigation: str, header: str,
                            jump_links: str, critical_issues: str, statistics: str,
                            navigation_tiles: str, breadcrumb_javascript: str,

@@ -131,6 +131,9 @@ class ImageReportGenerator:
         total_size = sum(img['file_size'] or 0 for img in image_details)
         total_size_mb = total_size / (1024 * 1024) if total_size > 0 else 0
 
+        # Calculate success rate
+        success_rate = int((successful / total_images * 100)) if total_images > 0 else 0
+
         # Build statistics dashboard
         stats_html = self._build_statistics_dashboard(
             total_images, successful, failed, skipped,
@@ -146,16 +149,46 @@ class ImageReportGenerator:
         # Build type filter options
         type_options = "".join(f'<option value="{img_type}">{img_type}</option>' for img_type in sorted(by_type.keys()))
 
-        # Use template renderer
-        html = self.template_renderer.render_image_report(
+        # Use new v2 template renderer
+        import json
+        images_json = json.dumps([{
+            'local_filename': img['local_filename'],
+            'page_id': img['page_id'],
+            'type': img['type'],
+            'status': img['status'],
+            'alt_text': img.get('alt_text', ''),
+            'source_url': img.get('source_url', ''),
+            'file_size': img['file_size'],
+            'local_path': img.get('local_path', '')
+        } for img in image_details])
+
+        # Build summary stats HTML
+        summary_stats_html = f'''
+            <div class="stat-item">
+                <div class="stat-value">{total_images}</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{successful}</div>
+                <div class="stat-label">Success</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{failed}</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{success_rate}%</div>
+                <div class="stat-label">Rate</div>
+            </div>
+        '''
+
+        html = self.template_renderer.render_image_report_v2(
             css_links=get_css_links(),
             navigation=nav_html,
             header=header_html,
-            statistics=stats_html,
-            page_options=page_options,
-            type_options=type_options,
-            image_table=table_html,
-            breadcrumb_javascript=get_breadcrumb_javascript() + self._get_javascript()
+            summary_stats=summary_stats_html,
+            images_json=images_json,
+            breadcrumb_javascript=get_breadcrumb_javascript()
         )
         return html
 
@@ -507,11 +540,13 @@ class ImageReportGenerator:
         }
 
         th {
-            padding: 0.75rem;
+            padding: 1rem 1.25rem;
             text-align: left;
             cursor: pointer;
             user-select: none;
             font-size: 0.9em;
+            font-weight: 600;
+            letter-spacing: 0.05em;
         }
 
         th:hover {
@@ -531,37 +566,41 @@ class ImageReportGenerator:
         }
 
         td {
-            padding: 0.5rem 0.75rem;
+            padding: 1rem 1.25rem;
             font-size: 0.9em;
         }
 
         /* Cell-specific styling */
         .thumbnail-cell {
             text-align: center;
-            padding: 0.5rem;
+            padding: 1rem;
+            background: #fafafa;
         }
 
         .page-cell {
-            max-width: 150px;
+            max-width: 180px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            padding: 1rem 1.25rem;
         }
 
         .filename-cell {
-            max-width: 200px;
+            max-width: 220px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             font-family: monospace;
             font-size: 0.85em;
+            padding: 1rem 1.25rem;
         }
 
         .alt-text-cell {
-            max-width: 180px;
+            max-width: 200px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            padding: 1rem 1.25rem;
         }
 
         .type-cell {
@@ -746,6 +785,74 @@ class ImageReportGenerator:
             font-size: 0.9em;
         }
 
+        /* Image Lightbox Modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .image-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            background: white;
+            border: none;
+            border-radius: 4px;
+            width: 2.5rem;
+            height: 2.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+
+        .modal-close:hover {
+            background: #f0f0f0;
+        }
+
+        .thumbnail-link {
+            cursor: zoom-in;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             body {
@@ -866,6 +973,46 @@ class ImageReportGenerator:
                     th.click();
                 }
             });
+        });
+
+        // Image lightbox functionality
+        function openImageModal(imageSrc, altText) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = imageSrc;
+            modalImage.alt = altText;
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Setup thumbnail click handlers
+        document.querySelectorAll('.thumbnail-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const img = link.querySelector('img');
+                openImageModal(img.src, img.alt);
+            });
+        });
+
+        // Close modal on background click
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('imageModal');
+            if (e.target === modal) {
+                closeImageModal();
+            }
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeImageModal();
+            }
         });
     </script>'''
 

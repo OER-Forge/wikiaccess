@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiAccess - Image Report</title>
+    {{ css_links }}
+    <style>
+        /* Image Report Specific Styles */
+
+        /* Modern Filter Chips */
+        .filter-bar {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .filter-section {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .filter-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9rem;
+            min-width: 70px;
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: #e8f1f9;
+            color: #0047b3;
+            border: 2px solid #cce0f5;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .chip:hover {
+            background: #d1e3f5;
+            border-color: #0047b3;
+        }
+
+        .chip.active {
+            background: #0047b3;
+            color: white;
+            border-color: #0047b3;
+        }
+
+        /* Search Box */
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            flex: 1;
+            min-width: 250px;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            font-size: 0.95rem;
+            width: 100%;
+            outline: none;
+        }
+
+        /* Detail View */
+        .detail-view {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 2rem;
+        }
+
+        .preview-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .image-preview {
+            width: 100%;
+            max-width: 600px;
+            height: 450px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #e0e0e0;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            cursor: zoom-in;
+        }
+
+        .image-preview .no-image {
+            font-size: 3rem;
+            color: #ccc;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .counter {
+            color: #666;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-btn {
+            padding: 0.75rem 1rem;
+            background: #0047b3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: #003580;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .page-btn {
+            padding: 0.5rem 0.75rem;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .page-btn:hover {
+            border-color: #0047b3;
+            color: #0047b3;
+        }
+
+        .page-btn.active {
+            background: #0047b3;
+            color: white;
+            border-color: #0047b3;
+        }
+
+        .page-info {
+            color: #666;
+            font-size: 0.9rem;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .info-section {
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 1.5rem;
+        }
+
+        .info-section:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .info-value {
+            font-size: 0.95rem;
+            color: #1a1a1a;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            width: fit-content;
+        }
+
+        .status-badge.success,
+        .status-badge.cached {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-badge.skipped {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .action-btn {
+            padding: 0.75rem;
+            border: 2px solid #0047b3;
+            color: #0047b3;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .action-btn:hover {
+            background: #0047b3;
+            color: white;
+        }
+
+        /* Modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .image-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vh;
+        }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2.5rem;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            border: none;
+            cursor: pointer;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(0,0,0,0.8);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .detail-view {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+
+            .image-preview {
+                max-width: 100%;
+                height: 350px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .detail-view {
+                padding: 1rem;
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .image-preview {
+                height: 250px;
+            }
+
+            .filter-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .search-box {
+                min-width: 100%;
+                max-width: 100%;
+            }
+
+            .preview-controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    {{ navigation }}
+
+    <div class="report-container">
+        {{ header }}
+
+        <!-- Summary Stats -->
+        <div class="report-grid narrow" style="margin-bottom: 2rem;">
+            {{ summary_stats }}
+        </div>
+
+        <!-- Modern Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-section">
+                <div class="search-box">
+                    <input type="text" id="searchBox" placeholder="🔍 Search filename, page, alt-text..." onkeyup="filterImages()">
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <span class="filter-label">Status:</span>
+                <div class="filter-chips" id="statusFilters">
+                    <span class="chip active" onclick="toggleFilter(this, 'status', 'all')" data-filter="all">All</span>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <span class="filter-label">Page:</span>
+                <div class="filter-chips" id="pageFilters">
+                    <span class="chip active" onclick="toggleFilter(this, 'page', 'all')" data-filter="all">All</span>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <span class="filter-label">Type:</span>
+                <div class="filter-chips" id="typeFilters">
+                    <span class="chip active" onclick="toggleFilter(this, 'type', 'all')" data-filter="all">All</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail View -->
+        <div class="detail-view">
+            <div class="preview-area">
+                <div class="image-preview" id="previewContainer">
+                    <div class="no-image">📷</div>
+                </div>
+
+                <div class="preview-controls">
+                    <span class="counter">
+                        Image <span id="currentIndex">0</span> of <span id="totalImages">0</span>
+                    </span>
+                    <div class="nav-buttons">
+                        <button class="nav-btn" onclick="previousImage()" id="prevBtn">← Previous</button>
+                        <button class="nav-btn" onclick="nextImage()" id="nextBtn">Next →</button>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="paginationContainer"></div>
+            </div>
+
+            <!-- Sidebar with Details -->
+            <div class="sidebar">
+                <div class="info-section">
+                    <div class="info-label">Filename</div>
+                    <div class="info-value" id="infoFilename">-</div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-label">Status</div>
+                    <div id="infoStatus"></div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-label">Page</div>
+                    <div class="info-value" id="infoPage">-</div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-label">Type</div>
+                    <div class="info-value" id="infoType">-</div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-label">Size</div>
+                    <div class="info-value" id="infoSize">-</div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-label">Alt-Text</div>
+                    <div class="info-value" id="infoAltText">-</div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-label">Source URL</div>
+                    <div class="info-value" id="infoSourceUrl" style="font-size: 0.85rem;">-</div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="action-btn" onclick="openImageFullscreen()" id="viewFullBtn">📺 Fullscreen</button>
+                    <button class="action-btn" onclick="downloadImage()" id="downloadBtn">⬇️ Download</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Modal -->
+    <div id="imageModal" class="image-modal">
+        <button class="modal-close" onclick="closeImageModal()">&times;</button>
+        <div class="modal-content">
+            <img id="modalImage" class="modal-image" alt="">
+        </div>
+    </div>
+
+    {{ breadcrumb_javascript }}
+
+    <script>
+        // Configuration
+        const IMAGES_PER_PAGE = 5;
+
+        // Image data and state
+        let allImages = {{ images_json | safe }};
+        let filteredImages = [...allImages];
+        let currentPage = 0;
+        let currentImageIndex = 0;
+
+        // Active filters
+        let activeFilters = {
+            status: 'all',
+            page: 'all',
+            type: 'all',
+            search: ''
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log(`DOMContentLoaded: allImages.length=${allImages.length}`);
+            buildFilterChips();
+            applyFilters();
+            // displayPage(0) is called by applyFilters(), no need to call again
+        });
+
+        function buildFilterChips() {
+            const statuses = [...new Set(allImages.map(img => img.status))];
+            const pages = [...new Set(allImages.map(img => img.page_id))];
+            const types = [...new Set(allImages.map(img => img.type))];
+
+            const statusContainer = document.getElementById('statusFilters');
+            statuses.forEach(status => {
+                const chip = document.createElement('span');
+                chip.className = 'chip';
+                chip.textContent = status.toUpperCase();
+                chip.dataset.filter = status;
+                chip.onclick = () => toggleFilter(chip, 'status', status);
+                statusContainer.appendChild(chip);
+            });
+
+            const pageContainer = document.getElementById('pageFilters');
+            pages.sort().forEach(page => {
+                const chip = document.createElement('span');
+                chip.className = 'chip';
+                chip.textContent = page.split(':').slice(-2).join(':') || page;
+                chip.dataset.filter = page;
+                chip.onclick = () => toggleFilter(chip, 'page', page);
+                pageContainer.appendChild(chip);
+            });
+
+            const typeContainer = document.getElementById('typeFilters');
+            types.forEach(type => {
+                const chip = document.createElement('span');
+                chip.className = 'chip';
+                chip.textContent = type;
+                chip.dataset.filter = type;
+                chip.onclick = () => toggleFilter(chip, 'type', type);
+                typeContainer.appendChild(chip);
+            });
+        }
+
+        function toggleFilter(element, filterType, filterValue) {
+            if (filterValue === 'all') {
+                document.querySelectorAll(`#${filterType}Filters .chip`).forEach(chip => {
+                    chip.classList.remove('active');
+                });
+                element.classList.add('active');
+                activeFilters[filterType] = 'all';
+            } else {
+                document.querySelector(`#${filterType}Filters .chip[data-filter="all"]`)?.classList.remove('active');
+                element.classList.toggle('active');
+                activeFilters[filterType] = element.classList.contains('active') ? filterValue : 'all';
+                if (activeFilters[filterType] === 'all') {
+                    document.querySelector(`#${filterType}Filters .chip[data-filter="all"]`)?.classList.add('active');
+                }
+            }
+
+            applyFilters();
+        }
+
+        function filterImages() {
+            activeFilters.search = document.getElementById('searchBox').value.toLowerCase();
+            applyFilters();
+        }
+
+        function applyFilters() {
+            filteredImages = allImages.filter(img => {
+                const statusMatch = activeFilters.status === 'all' || img.status === activeFilters.status;
+                const pageMatch = activeFilters.page === 'all' || img.page_id === activeFilters.page;
+                const typeMatch = activeFilters.type === 'all' || img.type === activeFilters.type;
+                const searchMatch = !activeFilters.search ||
+                    img.local_filename.toLowerCase().includes(activeFilters.search) ||
+                    img.page_id.toLowerCase().includes(activeFilters.search) ||
+                    img.alt_text.toLowerCase().includes(activeFilters.search);
+
+                return statusMatch && pageMatch && typeMatch && searchMatch;
+            });
+
+            currentPage = 0;
+            renderPagination();
+            displayPage(0);
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
+            const container = document.getElementById('paginationContainer');
+            container.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            for (let i = 0; i < totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+                btn.textContent = i + 1;
+                btn.onclick = () => displayPage(i);
+                container.appendChild(btn);
+            }
+
+            const info = document.createElement('div');
+            info.className = 'page-info';
+            info.textContent = `${currentPage + 1} of ${totalPages}`;
+            container.appendChild(info);
+        }
+
+        function displayPage(pageNum) {
+            currentPage = pageNum;
+            const start = pageNum * IMAGES_PER_PAGE;
+            const end = start + IMAGES_PER_PAGE;
+            const pageImages = filteredImages.slice(start, end);
+
+            if (pageImages.length === 0) {
+                document.getElementById('previewContainer').innerHTML = '<div class="no-image">No images found</div>';
+                document.getElementById('totalImages').textContent = '0';
+                document.getElementById('currentIndex').textContent = '0';
+                updateNavButtons();
+                return;
+            }
+
+            displayImage(0, pageImages);
+            document.getElementById('totalImages').textContent = filteredImages.length;
+            renderPagination();
+            updateNavButtons();
+        }
+
+        function displayImage(idx, pageImages = null) {
+            if (!pageImages) {
+                const start = currentPage * IMAGES_PER_PAGE;
+                const end = start + IMAGES_PER_PAGE;
+                pageImages = filteredImages.slice(start, end);
+            }
+
+            if (idx < 0 || idx >= pageImages.length) {
+                console.log(`displayImage: idx=${idx} out of range [0, ${pageImages.length})`);
+                return;
+            }
+
+            currentImageIndex = idx;
+            const img = pageImages[idx];
+            const globalIndex = (currentPage * IMAGES_PER_PAGE) + idx + 1;
+            console.log(`displayImage: displaying image ${globalIndex} (idx=${idx}, page=${currentPage})`);
+
+            document.getElementById('currentIndex').textContent = globalIndex;
+
+            // Update preview
+            const preview = document.getElementById('previewContainer');
+            preview.innerHTML = '';
+            if (img.local_path) {
+                const imgEl = document.createElement('img');
+                imgEl.src = img.local_path;
+                imgEl.alt = img.alt_text;
+                imgEl.onclick = openImageFullscreen;
+                preview.appendChild(imgEl);
+            } else {
+                const noImage = document.createElement('div');
+                noImage.className = 'no-image';
+                noImage.textContent = '📷';
+                preview.appendChild(noImage);
+            }
+
+            // Update sidebar
+            document.getElementById('infoFilename').textContent = img.local_filename || 'N/A';
+            document.getElementById('infoStatus').innerHTML = `<span class="status-badge ${img.status}">${img.status.toUpperCase()}</span>`;
+            document.getElementById('infoPage').textContent = img.page_id;
+            document.getElementById('infoType').textContent = img.type;
+            document.getElementById('infoSize').textContent = img.file_size ? formatSize(img.file_size) : 'N/A';
+            document.getElementById('infoAltText').textContent = img.alt_text || 'None';
+            document.getElementById('infoSourceUrl').textContent = img.source_url || 'N/A';
+
+            updateNavButtons();
+        }
+
+        function updateNavButtons() {
+            const start = currentPage * IMAGES_PER_PAGE;
+            const end = start + IMAGES_PER_PAGE;
+            const pageImages = filteredImages.slice(start, end);
+
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            const prevDisabled = currentImageIndex === 0;
+            const nextDisabled = currentImageIndex >= pageImages.length - 1;
+
+            prevBtn.disabled = prevDisabled;
+            nextBtn.disabled = nextDisabled;
+
+            console.log(`updateNavButtons: page=${currentPage}, imageIdx=${currentImageIndex}, pageLen=${pageImages.length}, prevDisabled=${prevDisabled}, nextDisabled=${nextDisabled}`);
+        }
+
+        function previousImage() {
+            console.log(`previousImage: currentImageIndex=${currentImageIndex}`);
+            const start = currentPage * IMAGES_PER_PAGE;
+            const end = start + IMAGES_PER_PAGE;
+            const pageImages = filteredImages.slice(start, end);
+
+            if (currentImageIndex > 0) {
+                displayImage(currentImageIndex - 1, pageImages);
+            }
+        }
+
+        function nextImage() {
+            console.log(`nextImage: currentImageIndex=${currentImageIndex}`);
+            const start = currentPage * IMAGES_PER_PAGE;
+            const end = start + IMAGES_PER_PAGE;
+            const pageImages = filteredImages.slice(start, end);
+
+            if (currentImageIndex < pageImages.length - 1) {
+                displayImage(currentImageIndex + 1, pageImages);
+            }
+        }
+
+        function openImageFullscreen() {
+            const start = currentPage * IMAGES_PER_PAGE;
+            const end = start + IMAGES_PER_PAGE;
+            const pageImages = filteredImages.slice(start, end);
+            const img = pageImages[currentImageIndex];
+
+            if (img.local_path) {
+                const modal = document.getElementById('imageModal');
+                const modalImg = document.getElementById('modalImage');
+                modalImg.src = img.local_path;
+                modal.classList.add('show');
+            }
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.remove('show');
+        }
+
+        function downloadImage() {
+            const start = currentPage * IMAGES_PER_PAGE;
+            const end = start + IMAGES_PER_PAGE;
+            const pageImages = filteredImages.slice(start, end);
+            const img = pageImages[currentImageIndex];
+
+            if (img.local_path) {
+                const link = document.createElement('a');
+                link.href = img.local_path;
+                link.download = img.local_filename;
+                link.click();
+            }
+        }
+
+        function formatSize(bytes) {
+            if (!bytes) return 'N/A';
+            for (let unit of ['B', 'KB', 'MB']) {
+                if (bytes < 1024) return bytes.toFixed(1) + ' ' + unit;
+                bytes /= 1024;
+            }
+            return bytes.toFixed(1) + ' GB';
+        }
+
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeImageModal();
+            if (e.key === 'ArrowLeft') previousImage();
+            if (e.key === 'ArrowRight') nextImage();
+        });
+    </script>
+</body>
+</html>
