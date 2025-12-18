@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
+from .scraper import DokuWikiHTTPClient
 from .markdown_converter import MarkdownConverter
 from .accessibility import AccessibilityChecker
 from .reporting import ReportGenerator
@@ -62,7 +63,9 @@ class ConversionOrchestrator:
         self.db = db
         self.max_discovery_depth = max_discovery_depth
 
-        self.converter = MarkdownConverter(str(self.output_dir))
+        # Initialize components
+        client = DokuWikiHTTPClient(wiki_url)
+        self.converter = MarkdownConverter(client, str(self.output_dir), include_accessibility_toolbar=True)
         self.accessibility_checker = AccessibilityChecker()
         self.report_regenerator = ReportRegenerator(str(self.output_dir))
 
@@ -177,32 +180,77 @@ class ConversionOrchestrator:
 
         try:
             # Convert page
-            conversion_result = self.converter.convert_page(
-                page_name, self.wiki_url, formats
-            )
+            page_url = f"{self.wiki_url}/doku.php?id={page_name}"
+            html_path, docx_path, stats = self.converter.convert_url(page_url)
 
-            if conversion_result.get('error'):
-                result['error'] = conversion_result['error']
-                return result
+            conversion_result = {
+                'html': {'file_path': html_path, 'stats': stats} if html_path else None,
+                'docx': {'file_path': docx_path, 'stats': stats} if docx_path else None,
+                'image_count': stats.get('images', 0),
+                'failed_images': stats.get('images_failed', 0)
+            }
 
             result.update(conversion_result)
 
             # Check accessibility if requested
             if check_accessibility:
-                accessibility_result = self.accessibility_checker.check_page(
-                    page_name, self.output_dir, formats
-                )
-                result['accessibility'] = accessibility_result
+                accessibility_results = {}
+
+                if html_path:
+                    html_accessibility = self.accessibility_checker.check_html(html_path)
+                    accessibility_results['html'] = html_accessibility
+
+                if docx_path:
+                    docx_accessibility = self.accessibility_checker.check_docx(docx_path)
+                    accessibility_results['docx'] = docx_accessibility
+
+                result['accessibility'] = accessibility_results
 
                 # Store accessibility data
                 if self.db:
                     AccessibilityIssueHandler.store_and_update(
-                        self.db, page_name, batch_id, accessibility_result
+                        self.db, page_name, batch_id, accessibility_results
                     )
 
             # Store in database
             if self.db:
-                self.db.add_page(page_name, batch_id, result)
+                page_data = {
+                    'wiki_url': self.wiki_url,
+                    'page_id': page_name,
+                    'batch_id': batch_id,
+                    'conversion_status': 'SUCCESS',
+                    'markdown_path': str(self.output_dir / 'markdown' / f"{page_name.replace(':', '_')}.md"),
+                    'html_path': html_path,
+                    'docx_path': docx_path,
+                    'html_wcag_aa_score': result.get('accessibility', {}).get('html', {}).get('score_aa'),
+                    'html_wcag_aaa_score': result.get('accessibility', {}).get('html', {}).get('score_aaa'),
+                    'docx_wcag_aa_score': result.get('accessibility', {}).get('docx', {}).get('score_aa'),
+                    'docx_wcag_aaa_score': result.get('accessibility', {}).get('docx', {}).get('score_aaa'),
+                    'image_count': stats.get('images', 0),
+                    'image_success_count': stats.get('images_success', 0),
+                    'image_failed_count': stats.get('images_failed', 0),
+                    'conversion_duration_seconds': 0,
+                    'error_message': None
+                }
+                self.db.add_page_conversion(page_data)
+
+                # Store image details
+                for img in self.converter.image_details:
+                    if img.get('page_id') == page_name or not img.get('page_id'):
+                        img_data = {
+                            'page_id': page_name,
+                            'batch_id': batch_id,
+                            'type': img.get('type', 'wiki_image'),
+                            'source_url': img.get('source_url'),
+                            'local_filename': img.get('local_filename'),
+                            'status': img.get('status'),
+                            'file_size': img.get('file_size'),
+                            'dimensions': img.get('dimensions'),
+                            'alt_text': img.get('alt_text'),
+                            'alt_text_quality': 'missing' if not img.get('alt_text') else 'manual',
+                            'error_message': img.get('error_message')
+                        }
+                        self.db.add_image(img_data)
 
             return result
 
