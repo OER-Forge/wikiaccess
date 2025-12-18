@@ -268,19 +268,7 @@ class ReportRegenerator:
         </section>
     </div>
 
-    <script>
-        // Navigation scripts (from original implementation)
-        function toggleDropdown(dropdownId) {{
-            const dropdown = document.getElementById(dropdownId);
-            const allDropdowns = document.querySelectorAll('.nav-dropdown');
-            allDropdowns.forEach(d => {{
-                if (d.id !== dropdownId) {{
-                    d.classList.remove('open');
-                }}
-            }});
-            dropdown.classList.toggle('open');
-        }}
-    </script>
+    <script src="js/reports.js"></script>
 </body>
 </html>'''
 

@@ -23,6 +23,7 @@ from .report_components import (
     build_report_header, build_stat_cards, build_action_buttons
 )
 from .static_helper import get_css_links
+from .template_renderer import TemplateRenderer
 
 
 class ReportGenerator:
@@ -32,6 +33,7 @@ class ReportGenerator:
         self.output_dir = Path(output_dir)
         self.page_reports = {}  # page_name -> {html_report, docx_report}
         self.db = db  # Database connection for enhanced reporting
+        self.template_renderer = TemplateRenderer(str(self.output_dir))
     
     def add_page_reports(self, page_name: str, html_report: Dict, docx_report: Dict,
                         html_stats: Dict = None, docx_stats: Dict = None):
@@ -257,18 +259,12 @@ class ReportGenerator:
 
     def _build_combined_detail_html(self, page_name: str, html_report: Dict, docx_report: Dict,
                                     html_stats: Optional[Dict] = None, docx_stats: Optional[Dict] = None) -> str:
-        """Build combined detailed report HTML using component system"""
+        """Build combined detailed report HTML using Jinja2 template"""
 
         # Build breadcrumb navigation
         page_list = list(self.page_reports.keys())
         broken_links_exists = (self.output_dir / 'broken_links_report.html').exists()
         nav_html = get_breadcrumb_navigation('page_detail', current_page_name=page_name, page_list=page_list, show_broken_links=broken_links_exists)
-
-        html_stats = html_stats or {}
-        docx_stats = docx_stats or {}
-
-        # Get enhanced data from database
-        metadata, links, images, history = self._get_enhanced_data(page_name)
 
         # Build header with breadcrumb
         header_html = build_report_header(
@@ -282,195 +278,27 @@ class ReportGenerator:
         )
 
         # Build action buttons
-        actions_html = build_action_buttons([
-            {'label': 'View HTML', 'url': f'../html/{page_name}.html', 'icon': '📄', 'external': True},
-            {'label': 'Download DOCX', 'url': f'../docx/{page_name}.docx', 'icon': '📝', 'download': True},
-            {'label': 'View Markdown', 'url': f'../markdown/{page_name}.md', 'icon': '📊', 'external': True}
-        ])
+        actions = [
+            {'label': 'View HTML', 'url': f'../html/{page_name}.html', 'icon': '📄', 'text': 'View HTML', 'target': '_blank'},
+            {'label': 'Download DOCX', 'url': f'../docx/{page_name}.docx', 'icon': '📝', 'text': 'Download DOCX', 'download': True},
+            {'label': 'View Markdown', 'url': f'../markdown/{page_name}.md', 'icon': '📊', 'text': 'View Markdown', 'target': '_blank'}
+        ]
 
-        # HTML scores
-        html_aa = html_report.get('score_aa', 0)
-        html_aaa = html_report.get('score_aaa', 0)
-        html_aa_badge = self._get_score_badge(html_aa)
-        html_aaa_badge = self._get_score_badge(html_aaa)
+        # Prepare CSS links
+        css_links = get_css_links()
 
-        # DOCX scores
-        docx_aa = docx_report.get('score_aa', 0)
-        docx_aaa = docx_report.get('score_aaa', 0)
-        docx_aa_badge = self._get_score_badge(docx_aa)
-        docx_aaa_badge = self._get_score_badge(docx_aaa)
-
-        # Build issue lists
-        html_issues_aa_html = self._build_issue_list(html_report.get('issues_aa', []), 'error')
-        html_issues_aaa_html = self._build_issue_list(html_report.get('issues_aaa', []), 'error-aaa')
-        html_warnings_html = self._build_issue_list(html_report.get('warnings', []), 'warning')
-        docx_issues_aa_html = self._build_issue_list(docx_report.get('issues_aa', []), 'error')
-        docx_issues_aaa_html = self._build_issue_list(docx_report.get('issues_aaa', []), 'error-aaa')
-        docx_warnings_html = self._build_issue_list(docx_report.get('warnings', []), 'warning')
-        
-        return f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accessibility Report: {html_lib.escape(page_name)}</title>
-{get_css_links()}
-</head>
-<body>
-    {nav_html}
-
-    <div class="report-container">
-        {header_html}
-
-        <section class="report-section">
-            <h2 class="report-section-title">Quick Actions</h2>
-            {actions_html}
-        </section>
-
-        <div class="report-grid">
-            <!-- HTML Report Card -->
-            <div class="report-card bordered success no-hover">
-                <h3 class="report-card-title">📄 HTML Version</h3>
-                <div style="display: flex; gap: 1rem; margin: 1rem 0; justify-content: center;">
-                    {html_aa_badge}
-                    {html_aaa_badge}
-                </div>
-                {self._build_media_stats("HTML", html_stats)}
-                {self._build_format_issues("AA Issues", html_issues_aa_html, html_report['issues_aa'])}
-                {self._build_format_issues("AAA Issues", html_issues_aaa_html, html_report['issues_aaa'])}
-                {self._build_format_issues("Warnings", html_warnings_html, html_report['warnings'])}
-            </div>
-
-            <!-- DOCX Report Card -->
-            <div class="report-card bordered success no-hover">
-                <h3 class="report-card-title">📝 DOCX Version</h3>
-                <div style="display: flex; gap: 1rem; margin: 1rem 0; justify-content: center;">
-                    {docx_aa_badge}
-                    {docx_aaa_badge}
-                </div>
-                {self._build_media_stats("DOCX", docx_stats)}
-                {self._build_format_issues("AA Issues", docx_issues_aa_html, docx_report['issues_aa'])}
-                {self._build_format_issues("AAA Issues", docx_issues_aaa_html, docx_report['issues_aaa'])}
-                {self._build_format_issues("Warnings", docx_warnings_html, docx_report['warnings'])}
-            </div>
-        </div>
-    </div>
-
-    {get_breadcrumb_javascript()}
-</body>
-</html>'''
+        # Use template renderer
+        return self.template_renderer.render_page_report(
+            page_name=page_name,
+            html_report=html_report,
+            docx_report=docx_report,
+            css_links=css_links,
+            navigation=nav_html,
+            breadcrumb='',  # Included in header
+            header=header_html,
+            actions=actions
+        )
     
-    def _build_format_issues(self, title: str, content: str, issues: list) -> str:
-        """Build issues section for a format"""
-        if not issues:
-            return ''
-        return f'''
-            <div class="issue-section">
-                <h3>{title}</h3>
-                {content}
-            </div>'''
-    
-    def _build_media_stats(self, format_name: str, stats: Dict) -> str:
-        """Build media statistics display"""
-        if not stats:
-            return ''
-        
-        images_success = stats.get('images_success', 0)
-        images_failed = stats.get('images_failed', 0)
-        videos_success = stats.get('videos_success', 0)
-        videos_failed = stats.get('videos_failed', 0)
-        equations = stats.get('equations', 0)
-        
-        total_images = images_success + images_failed
-        total_videos = videos_success + videos_failed
-        
-        if total_images == 0 and total_videos == 0 and equations == 0:
-            return ''
-        
-        stats_html = '<div style="background: #f5f5f5; padding: 1rem; margin: 1rem 0; border-radius: 4px;">'
-        stats_html += '<h4 style="margin: 0 0 0.5rem 0;">Conversion Statistics</h4>'
-        stats_html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem;">'
-        
-        if total_images > 0:
-            img_color = '#28a745' if images_failed == 0 else '#ffc107' if images_success > 0 else '#dc3545'
-            stats_html += f'''
-                <div style="padding: 0.5rem; background: white; border-radius: 4px;">
-                    <div style="font-size: 0.9rem; color: #666;">Images</div>
-                    <div style="font-size: 1.2rem; font-weight: bold; color: {img_color};">
-                        {images_success}/{total_images}
-                    </div>
-                    <div style="font-size: 0.8rem; color: #999;">embedded</div>
-                </div>'''
-        
-        if total_videos > 0:
-            vid_color = '#28a745' if videos_failed == 0 else '#ffc107' if videos_success > 0 else '#dc3545'
-            stats_html += f'''
-                <div style="padding: 0.5rem; background: white; border-radius: 4px;">
-                    <div style="font-size: 0.9rem; color: #666;">Videos</div>
-                    <div style="font-size: 1.2rem; font-weight: bold; color: {vid_color};">
-                        {videos_success}/{total_videos}
-                    </div>
-                    <div style="font-size: 0.8rem; color: #999;">embedded</div>
-                </div>'''
-        
-        if equations > 0:
-            stats_html += f'''
-                <div style="padding: 0.5rem; background: white; border-radius: 4px;">
-                    <div style="font-size: 0.9rem; color: #666;">Equations</div>
-                    <div style="font-size: 1.2rem; font-weight: bold; color: #28a745;">
-                        {equations}
-                    </div>
-                    <div style="font-size: 0.8rem; color: #999;">converted</div>
-                </div>'''
-        
-        stats_html += '</div></div>'
-        return stats_html
-    
-    def _build_section(self, title: str, content: str) -> str:
-        """Build a report section"""
-        return f'''
-    <div class="section">
-        <h2>{title}</h2>
-        {content}
-    </div>'''
-    
-    def _build_issue_list(self, items: List[str], css_class: str) -> str:
-        """Build HTML list of issues"""
-        if not items:
-            return '<p>None</p>'
-        
-        list_items = '\n'.join(f'<li class="{css_class}">{html_lib.escape(item)}</li>' for item in items)
-        return f'<ul class="issue-list">\n{list_items}\n</ul>'
-    
-    def _build_recommendations(self, report: Dict) -> str:
-        """Generate recommendations based on issues"""
-        recommendations = []
-        
-        if report['issues_aa']:
-            recommendations.append('<li>Fix all WCAG AA issues to meet minimum accessibility standards</li>')
-        
-        if any('alt' in issue.lower() for issue in report['issues_aa']):
-            recommendations.append('<li>Add descriptive alt text to all images</li>')
-        
-        if any('heading' in issue.lower() for issue in report['issues_aa']):
-            recommendations.append('<li>Ensure proper heading hierarchy (H1 → H2 → H3, etc.)</li>')
-        
-        if any('link' in issue.lower() for issue in report['issues_aa']):
-            recommendations.append('<li>Use descriptive link text (avoid "click here")</li>')
-        
-        if any('contrast' in warning.lower() for warning in report['warnings']):
-            recommendations.append('<li>Test color contrast ratio (minimum 4.5:1 for normal text)</li>')
-        
-        if any('lang' in issue.lower() for issue in report['issues_aa']):
-            recommendations.append('<li>Set document language attribute for screen readers</li>')
-        
-        if not recommendations:
-            recommendations.append('<li>✓ No major issues found - document meets WCAG guidelines</li>')
-        
-        recommendations.append('<li>Test with screen readers (NVDA, JAWS, VoiceOver)</li>')
-        recommendations.append('<li>Verify keyboard navigation works properly</li>')
-        
-        return '\n'.join(recommendations)
     
     def _get_score_color(self, score: float) -> str:
         """Get color based on score"""

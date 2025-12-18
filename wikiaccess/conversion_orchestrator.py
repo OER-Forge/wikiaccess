@@ -26,6 +26,7 @@ from .database import ConversionDatabase
 from .link_rewriter import LinkRewriter
 from .discovery import PageDiscoveryEngine
 from .report_regenerator import ReportRegenerator
+from .static_helper import copy_static_files
 
 
 class ConversionOrchestrator:
@@ -342,6 +343,9 @@ class ConversionOrchestrator:
             return
 
         print(f"\n{'='*70}\nRegenerating Comprehensive Reports\n{'='*70}")
+
+        # Copy static CSS and JS files to reports directory
+        copy_static_files(str(self.output_dir))
 
         self.report_regenerator.regenerate_all(self.db)
 

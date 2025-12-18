@@ -306,94 +306,9 @@ def get_breadcrumb_navigation(
 
 
 def get_breadcrumb_javascript() -> str:
-    """Return JavaScript for breadcrumb navigation functionality"""
-    return '''<script>
-        // Dropdown toggle functionality
-        function toggleDropdown(dropdownId) {
-            const dropdown = document.getElementById(dropdownId);
-            const allDropdowns = document.querySelectorAll('.nav-dropdown');
+    """Return JavaScript for breadcrumb navigation functionality (now external)"""
+    return '<script src="js/reports.js"></script>'
 
-            // Close all other dropdowns
-            allDropdowns.forEach(d => {
-                if (d.id !== dropdownId) {
-                    d.classList.remove('open');
-                    const button = d.querySelector('.nav-dropdown-toggle');
-                    if (button) button.setAttribute('aria-expanded', 'false');
-                }
-            });
-
-            // Toggle current dropdown
-            dropdown.classList.toggle('open');
-            const button = dropdown.querySelector('.nav-dropdown-toggle');
-            const isOpen = dropdown.classList.contains('open');
-            button.setAttribute('aria-expanded', isOpen);
-
-            // Focus on search input if dropdown opened
-            if (isOpen) {
-                const searchInput = dropdown.querySelector('.nav-dropdown-search input');
-                if (searchInput) {
-                    setTimeout(() => searchInput.focus(), 100);
-                }
-            }
-        }
-
-        // Filter dropdown items
-        function filterDropdownItems(dropdownId, query) {
-            const dropdown = document.getElementById(dropdownId);
-            const items = dropdown.querySelectorAll('.nav-dropdown-item');
-            const searchTerm = query.toLowerCase().trim();
-
-            let visibleCount = 0;
-
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                const isVisible = text.includes(searchTerm);
-                item.style.display = isVisible ? '' : 'none';
-                if (isVisible) visibleCount++;
-            });
-
-            // Show "no results" message if needed
-            const itemsContainer = dropdown.querySelector('.nav-dropdown-items');
-            let emptyState = itemsContainer.querySelector('.nav-dropdown-empty');
-
-            if (visibleCount === 0 && searchTerm.length > 0) {
-                if (!emptyState) {
-                    emptyState = document.createElement('div');
-                    emptyState.className = 'nav-dropdown-empty';
-                    emptyState.innerHTML = '<div class="nav-dropdown-empty-icon">🔍</div><div>No matches found</div>';
-                    itemsContainer.appendChild(emptyState);
-                }
-            } else if (emptyState) {
-                emptyState.remove();
-            }
-        }
-
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', function(event) {
-            const isDropdownClick = event.target.closest('.nav-dropdown');
-            if (!isDropdownClick) {
-                document.querySelectorAll('.nav-dropdown').forEach(dropdown => {
-                    dropdown.classList.remove('open');
-                    const button = dropdown.querySelector('.nav-dropdown-toggle');
-                    if (button) button.setAttribute('aria-expanded', 'false');
-                });
-            }
-        });
-
-        // Keyboard navigation for dropdowns
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                document.querySelectorAll('.nav-dropdown').forEach(dropdown => {
-                    dropdown.classList.remove('open');
-                    const button = dropdown.querySelector('.nav-dropdown-toggle');
-                    if (button) {
-                        button.setAttribute('aria-expanded', 'false');
-                        button.focus();
-                    }
-                });
-            }
-        });
-    </script>'''
 
 
 def get_jump_to_section_links(sections: List[Dict[str, str]]) -> str:

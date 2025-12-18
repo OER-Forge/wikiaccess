@@ -8,28 +8,37 @@ import shutil
 
 def copy_static_files(output_dir: str):
     """
-    Copy static CSS files to output directory.
+    Copy static CSS and JS files to output directory.
 
     Args:
         output_dir: Output directory path
     """
     output_path = Path(output_dir)
-    css_output = output_path / 'reports' / 'css'
-    css_output.mkdir(parents=True, exist_ok=True)
+    static_root = Path(__file__).parent / 'static'
 
-    # Get the static directory path
-    static_dir = Path(__file__).parent / 'static' / 'css'
+    # Copy CSS files
+    css_src = static_root / 'css'
+    css_dest = output_path / 'reports' / 'css'
+    css_dest.mkdir(parents=True, exist_ok=True)
 
-    if not static_dir.exists():
-        print(f"Warning: Static directory not found: {static_dir}")
-        return
+    if css_src.exists():
+        for css_file in css_src.glob('*.css'):
+            shutil.copy2(css_file, css_dest / css_file.name)
+    else:
+        print(f"Warning: CSS directory not found: {css_src}")
 
-    # Copy all CSS files
-    for css_file in static_dir.glob('*.css'):
-        dest = css_output / css_file.name
-        shutil.copy2(css_file, dest)
+    # Copy JavaScript files
+    js_src = static_root / 'js'
+    js_dest = output_path / 'reports' / 'js'
+    js_dest.mkdir(parents=True, exist_ok=True)
 
-    return css_output
+    if js_src.exists():
+        for js_file in js_src.glob('*.js'):
+            shutil.copy2(js_file, js_dest / js_file.name)
+    else:
+        print(f"Warning: JS directory not found: {js_src}")
+
+    return css_dest
 
 
 def get_css_links():
@@ -45,7 +54,8 @@ def get_css_links():
         'report-base.css',
         'components.css',
         'enhanced-sections.css',
-        'accessibility.css'
+        'accessibility.css',
+        'report-inline-styles.css'  # Consolidated inline styles from Python code
     ]
 
     links = []

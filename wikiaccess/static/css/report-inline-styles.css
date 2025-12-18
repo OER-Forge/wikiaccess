@@ -1,0 +1,136 @@
+/**
+ * Report Inline Styles Consolidated
+ * Extracted from Python code to proper CSS file
+ */
+
+/* Table styles */
+table th {
+    text-align: center;
+}
+
+table th[data-format="html"] {
+    background: #2980b9;
+    color: white;
+}
+
+table th[data-format="docx"] {
+    background: #27ae60;
+    color: white;
+}
+
+table td:not(:first-child) {
+    text-align: center;
+}
+
+/* Statistics and conversion styles */
+.conversion-stats {
+    background: #f5f5f5;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+}
+
+.conversion-stats h4 {
+    margin: 0 0 0.5rem 0;
+}
+
+.stats-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.stat-item {
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+}
+
+.stat-item-label {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.stat-item-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.stat-item-type {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+/* Image/video/equation stats */
+.stat-images-color {
+    color: #0066cc;
+}
+
+.stat-videos-color {
+    color: #cc0066;
+}
+
+.stat-equations-color {
+    color: #28a745;
+}
+
+/* Score card styles */
+.score-card {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+    justify-content: center;
+}
+
+.score-badge {
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.score-badge-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.score-badge-label {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Accessibility score colors */
+.score-perfect {
+    background: #00cc66;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.score-good {
+    background: #ff8800;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.score-warning {
+    color: #cc0000;
+}
+
+/* Page link styles */
+.page-link {
+    padding: 0.5rem 1rem;
+    margin: 0.25rem;
+    background: #f0f0f0;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #333;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.page-link:hover {
+    background: #e0e0e0;
+    color: #000;
+}
