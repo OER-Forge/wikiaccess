@@ -1,278 +1,240 @@
 # WikiAccess 📚
 
-**Transform DokuWiki into Accessible Documents**
+**Transform DokuWiki into Accessible WCAG 2.1 Compliant Documents**
 
-WikiAccess converts DokuWiki pages into WCAG 2.1-compliant HTML and Microsoft Word documents with comprehensive accessibility testing powered by industry-standard tools.
-
----
-
-## ✨ Features
-
-### 🎯 **Multi-Format Output**
-- **📄 Accessible HTML**: MathJax 3 equations, semantic HTML5, optimized contrast
-- **📄 Microsoft Word**: Native OMML equations, embedded media, accessibility metadata
-- **📱 Responsive Design**: Mobile-friendly HTML with dark mode support
-
-### 🌐 **Content Processing**
-- **Live Wiki Fetching**: Direct conversion from DokuWiki URLs (no API required)
-- **📐 Advanced Equations**: LaTeX → MathJax (HTML) & OMML (Word) - fully editable
-- **🖼️ Smart Media**: Auto-downloads images with alt-text, YouTube thumbnail generation
-- **🔗 Link Resolution**: Converts internal wiki links to full URLs
-- **📖 Markdown Pipeline**: Uses Markdown as intermediate format for reliability
-
-### ♿ **Accessibility Excellence**
-- **🏆 Industry-Standard Testing**: Powered by [pa11y](https://github.com/pa11y/pa11y) accessibility engine
-- **📊 WCAG 2.1 Compliance**: AA and AAA level scoring with detailed feedback
-- **🎯 Comprehensive Reports**: Interactive HTML dashboards with fix recommendations
-- **🔍 50+ Accessibility Rules**: Color contrast, heading hierarchy, alt-text, keyboard access
-- **📈 Progress Tracking**: Batch processing with aggregate compliance scores
-
-### 🗄️ **Database Tracking** (New!)
-- **📊 Conversion History**: Track every conversion with timestamps and results
-- **🔄 Incremental Updates**: Automatically skip recently converted pages
-- **📈 Accessibility Trends**: Monitor WCAG scores over time
-- **🖼️ Image Analytics**: Identify problematic image sources and failure patterns
-- **🔗 Link Management**: Track internal links and detect broken references
-- **📋 Batch Management**: Resume failed conversions without re-processing successful pages
-- **📤 CSV Export**: Generate compliance reports for stakeholders
-
-See [DATABASE.md](DATABASE.md) for complete documentation.
+WikiAccess converts DokuWiki pages into accessible HTML and Word documents with comprehensive accessibility testing, image processing, and broken link detection.
 
 ---
 
 ## 🚀 Quick Start
 
-### **Prerequisites**
+### Prerequisites
 - Python 3.8+
 - Node.js & npm (for accessibility testing)
-- Pandoc 2.9+ (for document conversion)
+- Pandoc 2.9+
 
-### **Installation**
+### Installation
 ```bash
-# Clone repository
+# Clone and setup
 git clone https://github.com/OER-Forge/wikiaccess.git
 cd wikiaccess
 
-# Set up environment
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install dependencies
 pip install -r requirements.txt
 npm install pa11y
-
-# Install Pandoc
-brew install pandoc  # macOS
-# OR: sudo apt install pandoc  # Linux
-# OR: Download from https://pandoc.org/installing.html  # Windows
-```
-
-### **Basic Usage**
-```python
-from wikiaccess import convert_wiki_page
-
-# Convert single page
-result = convert_wiki_page(
-    wiki_url="https://your-wiki.com",
-    page_name="namespace:page_name", 
-    output_dir="output"
-)
-
-print(f"✓ HTML: {result['html_path']}")
-print(f"✓ DOCX: {result['docx_path']}")
-print(f"📊 Accessibility: {result['accessibility_report']}")
-```
-
-### **Batch Processing**
-```bash
-# Create URLS.txt with one URL per line
-echo "https://your-wiki.com/doku.php?id=page1" > URLS.txt
-echo "https://your-wiki.com/doku.php?id=page2" >> URLS.txt
-
-# Convert all pages
-python convert_from_file_list.py
 ```
 
 ---
 
-## 📖 Core Functions
+## 📋 Full Test Workflow
 
-### **Primary Conversion Functions**
+### **Step 1: Create URLS.txt**
+Create a file named `URLS.txt` with one DokuWiki URL per line:
+```
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:scalars_and_vectors
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:displacement_and_velocity
+https://msuperl.org/wikis/pcubed/doku.php?id=183_notes:modeling_with_vpython
+```
 
-#### `convert_wiki_page(wiki_url, page_name, output_dir)`
-Converts a single DokuWiki page to accessible HTML and DOCX formats.
+### **Step 2: Convert All Pages**
+```bash
+python3 convert_from_file_list.py
+```
 
-**Parameters:**
-- `wiki_url` (str): Base URL of DokuWiki site
-- `page_name` (str): Page identifier (namespace:pagename format)
-- `output_dir` (str): Output directory path
+This will:
+- ✅ Convert all URLs to HTML, DOCX, and Markdown
+- 📥 Download all images with alt-text
+- 📊 Test accessibility (WCAG 2.1 AA/AAA)
+- 📁 Organize output in `output/` directory
+- 📊 Generate initial reports
 
-**Returns:** Dictionary with file paths and conversion statistics
+### **Step 3: Verify Conversion & Regenerate Reports**
+```bash
+python3 test_full_workflow.py
+```
 
-#### `convert_multiple_pages(urls_and_pages, output_dir)`
-Batch converts multiple pages with combined accessibility reporting.
+This will:
+- 📊 Show database statistics (pages, images, broken links)
+- 🔄 Regenerate all accessibility reports
+- 📈 Show discovery workflow status
+- 📁 List all generated output files
 
-**Parameters:**
-- `urls_and_pages` (list): List of (wiki_url, page_name) tuples
-- `output_dir` (str): Output directory path
+### **Step 4: Analyze Broken Links**
+```bash
+python3 test_broken_links.py
+```
 
-**Returns:** Dictionary with batch processing results and aggregate reports
+This will:
+- 🔗 Identify broken internal wiki links
+- 📊 Show which pages they're referenced on
+- 💯 Rank broken links by frequency
 
-### **Utility Functions**
+### **Step 5: (Optional) Auto-Discover & Convert Missing Pages**
+```bash
+python3 wikiaccess/discovery_cli.py --auto-convert
+```
 
-#### `convert_from_markdown.py`
-Re-converts existing markdown files without re-scraping (for editing workflow).
-
-#### `convert_from_file_list.py`
-Processes URLS.txt file for batch conversion operations.
-
-### **Module Architecture**
-
-- **📡 `scraper.py`**: DokuWiki content fetching and media download
-- **🔄 `parser.py`**: DokuWiki syntax parsing and content extraction  
-- **📝 `markdown_converter.py`**: Markdown generation and Pandoc conversion
-- **♿ `accessibility.py`**: pa11y-powered WCAG 2.1 compliance testing
-- **📊 `reporting.py`**: Interactive dashboard and detailed report generation
-- **🔧 `unified.py`**: High-level convenience functions
-- **💻 `cli.py`**: Command-line interface
+This will:
+- 🔍 Find all pages referenced by broken links
+- ✅ Automatically convert them
+- 🔄 Update broken link status in database
 
 ---
 
 ## 📁 Output Structure
 
-WikiAccess creates a organized output directory:
-
 ```
 output/
-├── markdown/           📝 Editable Markdown sources
-├── html/              🌐 Accessible HTML documents  
-├── docx/              📄 Microsoft Word documents
-├── images/            🖼️ Downloaded media assets
-└── reports/           📊 Accessibility compliance reports
-    ├── accessibility_report.html        # Dashboard
-    └── page_accessibility.html          # Detailed reports
+├── html/                    # Accessible HTML pages
+├── docx/                    # Microsoft Word documents
+├── markdown/                # Editable Markdown sources
+├── images/                  # Downloaded media assets
+├── reports/                 # Accessibility compliance reports
+│   ├── index.html          # Hub with all reports
+│   ├── accessibility_report.html      # WCAG 2.1 scores
+│   ├── image_report.html              # Image analysis
+│   ├── broken_links_report.html       # Broken links
+│   └── [page]_accessibility.html      # Per-page reports
+└── conversion_history.db    # SQLite database with all metadata
 ```
 
 ---
 
-## 🧪 Example Workflows
+## 🗂️ Database Features
 
-### **Workflow 1: Full Conversion**
-```bash
-# Convert with full accessibility testing
-python3 -c "
+WikiAccess tracks all conversions in SQLite:
+
+```sql
+-- View database stats
+sqlite3 output/conversion_history.db
+
+-- Check page conversions
+SELECT COUNT(*) FROM pages;
+
+-- Check image downloads
+SELECT status, COUNT(*) FROM images GROUP BY status;
+
+-- Check link status
+SELECT status, COUNT(*) FROM links GROUP BY status;
+```
+
+---
+
+## 📊 Output Formats
+
+### HTML
+- Semantic HTML5 structure
+- MathJax 3 equations
+- Responsive design
+- Dark mode support
+- Interactive navigation
+
+### Word (DOCX)
+- Native OMML equations
+- Embedded images
+- Accessibility metadata
+- Editable formatting
+- Print-friendly layout
+
+### Reports
+- **Accessibility Dashboard**: WCAG 2.1 AA/AAA scores
+- **Image Report**: Alt-text quality, download status, statistics
+- **Broken Links Report**: Missing page references
+- **Individual Page Reports**: Detailed accessibility issues per page
+
+---
+
+## 🎯 Key Features
+
+### ♿ Accessibility Testing
+- **WCAG 2.1 AA/AAA Compliance**: Powered by pa11y
+- **Comprehensive Scoring**: 50+ accessibility rules
+- **Interactive Reports**: Click-through dashboards with fix recommendations
+- **Progress Tracking**: Historical trends and aggregate statistics
+
+### 🖼️ Image Processing
+- **Auto-Download**: Fetches all images from wiki
+- **Alt-Text Extraction**: Preserves accessibility metadata
+- **YouTube Support**: Auto-generates thumbnails
+- **Status Tracking**: Identifies failed downloads
+- **Analytics**: Reports image usage statistics
+
+### 🔗 Link Management
+- **Internal Link Resolution**: Converts wiki links to full URLs
+- **Broken Link Detection**: Identifies pages not yet converted
+- **Link Analytics**: Shows which pages are most referenced
+- **Discovery Integration**: Suggests missing pages for conversion
+
+### 📊 Database Tracking
+- **Conversion History**: Complete audit trail
+- **Incremental Updates**: Skips already-converted pages
+- **Batch Management**: Track conversion runs
+- **Statistics Export**: CSV reports for stakeholders
+
+---
+
+## 🔧 Advanced Usage
+
+### Convert Single Page
+```python
 from wikiaccess import convert_wiki_page
+
 result = convert_wiki_page(
-    'https://physics.library.vsu.edu',
-    '183_notes:scalars_and_vectors', 
-    'output'
+    wiki_url="https://msuperl.org/wikis/pcubed",
+    page_name="183_notes:scalars_and_vectors",
+    output_dir="output"
 )
-print(f'Accessibility Score: {result[\"accessibility_score\"]}%')
+
+print(f"HTML: {result['html_path']}")
+print(f"WCAG AA Score: {result['aa_score']}%")
+```
+
+### Edit & Re-Convert (No Re-Scraping)
+```bash
+# Edit markdown
+nano output/markdown/my_page.md
+
+# Re-convert without fetching from wiki
+python3 convert_from_markdown.py output/markdown/my_page.md
+```
+
+### Check Specific Page Accessibility
+```bash
+python3 -c "
+from wikiaccess.database import ConversionDatabase
+db = ConversionDatabase()
+pages = db.get_all_pages_with_scores()
+for p in pages:
+    if 'scalars' in p['page_id']:
+        print(f\"{p['page_id']}: AA={p['aa_score']}%, AAA={p['aaa_score']}%\")
 "
 ```
-
-### **Workflow 2: Edit & Re-convert**
-```bash
-# Edit the markdown file
-nano output/markdown/page_name.md
-
-# Re-convert without re-scraping  
-python convert_from_markdown.py output/markdown/page_name.md
-```
-
-### **Workflow 3: Batch Processing**
-```bash
-# Process 13 pages from URLS.txt
-python convert_from_file_list.py
-
-# View aggregate dashboard
-open output/reports/accessibility_report.html
-```
-
----
-
-## 🎯 Accessibility Features
-
-### **WCAG 2.1 Testing**
-- **🔍 Comprehensive**: 50+ accessibility rules via pa11y
-- **🎨 Color Contrast**: Real contrast ratios with fix recommendations
-- **📋 Heading Structure**: Logical hierarchy validation
-- **🖼️ Media Alt-text**: Image accessibility checking
-- **⌨️ Keyboard Access**: Navigation and interaction testing
-
-### **Scoring System**
-- **AA Score**: WCAG 2.1 Level AA compliance (0-100%)
-- **AAA Score**: WCAG 2.1 Level AAA compliance (0-100%)
-- **Issue Details**: Element selectors and specific fix guidance
-- **Progress Tracking**: Batch reports with aggregate statistics
-
-### **Report Features**
-- **📊 Interactive Dashboard**: Click-through navigation
-- **🔗 Direct Links**: Access HTML/DOCX files from reports
-- **📈 Statistics**: Success rates for images, equations, conversions
-- **🎯 Actionable Feedback**: Specific WCAG guideline violations
 
 ---
 
 ## 📚 Documentation
 
-### **Comprehensive Guides**
-- **📘 [docs/README.md](docs/README.md)** - Complete documentation overview
-- **🚀 [docs/QUICKSTART.md](docs/QUICKSTART.md)** - Installation and basic usage
-- **📖 [docs/MODULE_DOCUMENTATION.md](docs/MODULE_DOCUMENTATION.md)** - Full API reference
-- **♿ [docs/ACCESSIBILITY_SCORING.md](docs/ACCESSIBILITY_SCORING.md)** - How pa11y scoring works
-
-### **Architecture Diagrams**
-- **🏗️ [docs/ARCHITECTURE.png](docs/ARCHITECTURE.png)** - System components
-- **🔄 [docs/WORKFLOWS.png](docs/WORKFLOWS.png)** - Conversion workflows  
-- **📊 [docs/DATA_FLOW.png](docs/DATA_FLOW.png)** - Data transformations
+- **[DATABASE.md](DATABASE.md)** - Database schema and queries
+- **[docs/MODULE_DOCUMENTATION.md](docs/MODULE_DOCUMENTATION.md)** - Full API reference
+- **[docs/ACCESSIBILITY_SCORING.md](docs/ACCESSIBILITY_SCORING.md)** - WCAG 2.1 details
 
 ---
 
-## 🛠️ Technical Details
+## 🛠️ Technical Stack
 
-### **Dependencies**
-- **Python**: beautifulsoup4, requests, python-docx, Pillow, latex2mathml
-- **Node.js**: pa11y (accessibility testing)
-- **External**: Pandoc (document conversion)
-
-### **Supported Content**
-- ✅ DokuWiki syntax (headings, lists, links, tables)
-- ✅ LaTeX equations (`$inline$`, `$$display$$`)
-- ✅ Images (PNG, JPG, GIF, SVG) with auto-download
-- ✅ YouTube videos (iframe embed + thumbnail)
-- ✅ Internal wiki links (auto-resolved to full URLs)
-- ✅ Code blocks with syntax highlighting
-
-### **Accessibility Standards**
-- **WCAG 2.1**: Both AA and AAA compliance testing
-- **pa11y Engine**: Industry-standard accessibility validation
-- **HTML Standards**: Semantic HTML5, proper heading hierarchy
-- **Document Standards**: Word accessibility metadata, alt-text
-
----
-
-## 🤝 Contributing
-
-1. **Fork** the repository
-2. **Create** feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to branch (`git push origin feature/amazing-feature`)  
-5. **Open** Pull Request
+- **Python**: BeautifulSoup4, python-docx, Pillow, requests
+- **Accessibility**: pa11y engine (50+ WCAG rules)
+- **Document Conversion**: Pandoc
+- **Database**: SQLite3
+- **Equations**: LaTeX → MathJax (HTML) / OMML (Word)
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **[pa11y](https://github.com/pa11y/pa11y)** - Accessibility testing engine
-- **[Pandoc](https://pandoc.org/)** - Universal document converter
-- **WCAG Guidelines** - Web Content Accessibility Guidelines 2.1
+MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
