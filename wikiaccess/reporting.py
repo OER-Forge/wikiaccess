@@ -77,7 +77,7 @@ class ReportGenerator:
             print(f"  ✓ Detailed report: {report_path}")
     
     def _build_dashboard_html(self) -> str:
-        """Build dashboard HTML using component system"""
+        """Build dashboard HTML using template renderer"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # Build breadcrumb navigation
@@ -123,105 +123,40 @@ class ReportGenerator:
             {'value': total_html_issues_aa + total_docx_issues_aa, 'label': 'Total AA Issues', 'color': '#dc3545'}
         ])
 
-        # Build page table rows
-        page_rows = []
+        # Build page data for template
+        pages = []
         for page_name, reports in self.page_reports.items():
             html_report = reports['html']
             docx_report = reports['docx']
 
-            html_aa = html_report['score_aa']
-            html_aaa = html_report['score_aaa']
-            html_aa_badge = self._get_score_badge(html_aa)
-            html_aaa_badge = self._get_score_badge(html_aaa)
+            pages.append({
+                'name': page_name,
+                'detail_link': f'{page_name}_accessibility.html',
+                'html_file_link': f'../html/{page_name}.html',
+                'docx_file_link': f'../docx/{page_name}.docx',
+                'html_aa_badge': self._get_score_badge(html_report['score_aa']),
+                'html_aaa_badge': self._get_score_badge(html_report['score_aaa']),
+                'html_aa_issues': len(html_report['issues_aa']),
+                'docx_aa_badge': self._get_score_badge(docx_report['score_aa']),
+                'docx_aaa_badge': self._get_score_badge(docx_report['score_aaa']),
+                'docx_aa_issues': len(docx_report['issues_aa'])
+            })
 
-            docx_aa = docx_report['score_aa']
-            docx_aaa = docx_report['score_aaa']
-            docx_aa_badge = self._get_score_badge(docx_aa)
-            docx_aaa_badge = self._get_score_badge(docx_aaa)
-
-            detail_link = f'{page_name}_accessibility.html'
-            html_file_link = f'../html/{page_name}.html'
-            docx_file_link = f'../docx/{page_name}.docx'
-
-            page_rows.append([
-                f'<a href="{detail_link}" class="report-link">{html_lib.escape(page_name)}</a><br>'
-                f'<small><a href="{html_file_link}" target="_blank" rel="noopener">📄 HTML</a> | '
-                f'<a href="{docx_file_link}" target="_blank" rel="noopener">📝 DOCX</a></small>',
-                html_aa_badge,
-                html_aaa_badge,
-                str(len(html_report['issues_aa'])),
-                docx_aa_badge,
-                docx_aaa_badge,
-                str(len(docx_report['issues_aa']))
-            ])
-
-        # Build table
-        table_html = self._build_table_with_sections(page_rows)
-
-        return f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accessibility Compliance Dashboard</title>
-{get_css_links()}
-</head>
-<body>
-    {nav_html}
-
-    <div class="report-container">
-        {header_html}
-
-        <section class="report-section">
-            <h2 class="report-section-title">Summary Statistics</h2>
-            {stats_html}
-        </section>
-
-        <section class="report-section">
-            <h2 class="report-section-title">Page Reports</h2>
-            {table_html}
-        </section>
-    </div>
-
-    {get_breadcrumb_javascript()}
-</body>
-</html>'''
+        # Use template renderer
+        return self.template_renderer.render_accessibility_dashboard(
+            pages=pages,
+            css_links=get_css_links(),
+            navigation=nav_html,
+            header=header_html,
+            stats=stats_html,
+            breadcrumb_javascript=get_breadcrumb_javascript()
+        )
 
     def _get_score_badge(self, score: int) -> str:
         """Generate HTML badge for score"""
         badge_class = 'success' if score >= 90 else 'warning' if score >= 70 else 'danger'
         return f'<span class="report-badge score {badge_class}">{score}%</span>'
 
-    def _build_table_with_sections(self, page_rows: List[List[str]]) -> str:
-        """Build table with column sections"""
-        table_header = '''
-        <div class="report-table-wrapper">
-            <table class="report-table">
-                <thead>
-                    <tr>
-                        <th rowspan="2">Page Name</th>
-                        <th colspan="3" style="text-align: center; background: #2980b9;">HTML</th>
-                        <th colspan="3" style="text-align: center; background: #27ae60;">DOCX</th>
-                    </tr>
-                    <tr>
-                        <th class="center">WCAG AA</th>
-                        <th class="center">WCAG AAA</th>
-                        <th class="center">AA Issues</th>
-                        <th class="center">WCAG AA</th>
-                        <th class="center">WCAG AAA</th>
-                        <th class="center">AA Issues</th>
-                    </tr>
-                </thead>
-                <tbody>'''
-
-        rows_html = ''
-        for row in page_rows:
-            cells = ''.join([f'<td>{cell}</td>' if i == 0 else f'<td style="text-align: center;">{cell}</td>'
-                           for i, cell in enumerate(row)])
-            rows_html += f'<tr>{cells}</tr>'
-
-        return f'''{table_header}{rows_html}</tbody></table></div>'''
-    
     def _get_enhanced_data(self, page_name):
         """Get enhanced data if database available"""
         if not self.db:

@@ -135,41 +135,31 @@ class TemplateRenderer:
             versions=versions
         )
 
-    def render_landing_hub(self, pages: List[Dict[str, Any]]) -> str:
-        """Render landing hub template.
+    def render_accessibility_dashboard(self, pages: List[Dict[str, Any]], css_links: str,
+                                      navigation: str, header: str, stats: str,
+                                      breadcrumb_javascript: str) -> str:
+        """Render accessibility dashboard template.
 
         Args:
-            pages: List of page data
+            pages: List of page data with scores
+            css_links: CSS link tags
+            navigation: Navigation HTML
+            header: Header HTML
+            stats: Statistics HTML
+            breadcrumb_javascript: Breadcrumb JavaScript
 
         Returns:
             Rendered HTML string
         """
-        template = self.env.get_template("landing_hub.html")
-        return template.render(pages=pages)
-
-    def render_broken_links_report(self, links: List[Dict[str, Any]]) -> str:
-        """Render broken links report template.
-
-        Args:
-            links: List of broken links
-
-        Returns:
-            Rendered HTML string
-        """
-        template = self.env.get_template("broken_links_report.html")
-        return template.render(links=links)
-
-    def render_image_report(self, images: List[Dict[str, Any]]) -> str:
-        """Render image report template.
-
-        Args:
-            images: List of image data
-
-        Returns:
-            Rendered HTML string
-        """
-        template = self.env.get_template("image_report.html")
-        return template.render(images=images)
+        template = self.env.get_template("accessibility_dashboard.html")
+        return template.render(
+            pages=pages,
+            css_links=Markup(css_links),
+            navigation=Markup(navigation),
+            header=Markup(header),
+            stats=Markup(stats),
+            breadcrumb_javascript=Markup(breadcrumb_javascript)
+        )
 
     def render_broken_links_report(self, links: List[Dict[str, Any]], css_links: str,
                                    navigation: str, header: str, stats: str) -> str:
