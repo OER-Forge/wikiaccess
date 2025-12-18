@@ -166,6 +166,96 @@ class ConversionDatabase:
                 ON accessibility_issues(page_id, batch_id)
             """)
 
+            # Discovered pages table
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS discovered_pages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    target_page_id TEXT NOT NULL UNIQUE,
+                    wiki_url TEXT NOT NULL,
+                    discovery_depth INTEGER NOT NULL DEFAULT 1,
+                    discovery_status TEXT NOT NULL CHECK(
+                        discovery_status IN ('discovered', 'approved', 'skipped', 'failed_404', 'converted')
+                    ),
+                    first_discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    first_discovered_by_batch TEXT,
+                    reference_count INTEGER DEFAULT 0,
+                    decision_made_at TIMESTAMP,
+                    decision_reason TEXT,
+                    converted_at TIMESTAMP,
+                    converted_batch_id TEXT,
+                    http_status_code INTEGER,
+                    last_check_at TIMESTAMP,
+                    check_attempt_count INTEGER DEFAULT 0,
+                    FOREIGN KEY(first_discovered_by_batch) REFERENCES conversion_batches(batch_id),
+                    FOREIGN KEY(converted_batch_id) REFERENCES conversion_batches(batch_id)
+                )
+            """)
+
+            self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_discovered_status
+                ON discovered_pages(discovery_status, discovery_depth)
+            """)
+
+            self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_discovered_page_id
+                ON discovered_pages(target_page_id)
+            """)
+
+            self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_discovered_batch
+                ON discovered_pages(first_discovered_by_batch)
+            """)
+
+            # Discovery sources table
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS discovery_sources (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discovered_page_id INTEGER NOT NULL,
+                    source_page_id TEXT NOT NULL,
+                    link_text TEXT,
+                    discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    batch_id TEXT NOT NULL,
+                    FOREIGN KEY(discovered_page_id) REFERENCES discovered_pages(id),
+                    FOREIGN KEY(batch_id) REFERENCES conversion_batches(batch_id)
+                )
+            """)
+
+            self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_discovery_sources_page
+                ON discovery_sources(discovered_page_id)
+            """)
+
+            self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_discovery_sources_batch
+                ON discovery_sources(batch_id)
+            """)
+
+            # Add discovery columns to existing tables if needed
+            try:
+                self.conn.execute("ALTER TABLE conversion_batches ADD COLUMN discovery_enabled BOOLEAN DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                self.conn.execute("ALTER TABLE conversion_batches ADD COLUMN pages_discovered_count INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                self.conn.execute("ALTER TABLE conversion_batches ADD COLUMN parent_batch_id TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                self.conn.execute("ALTER TABLE conversion_batches ADD COLUMN discovery_depth INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                self.conn.execute("ALTER TABLE pages ADD COLUMN discovery_depth INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+
     @contextlib.contextmanager
     def transaction(self):
         """Context manager for database transactions."""
@@ -534,6 +624,277 @@ class ConversionDatabase:
             ORDER BY converted_at ASC
         """, (wiki_url, page_id))
         return [dict(row) for row in cursor.fetchall()]
+
+    # Discovery operations
+
+    def add_discovered_page(self, page_data: Dict[str, Any]) -> int:
+        """Record a newly discovered page.
+
+        Args:
+            page_data: Dictionary with discovered page details
+                Required: target_page_id, wiki_url, discovery_depth, discovery_status
+                Optional: first_discovered_by_batch, reference_count, decision_reason
+
+        Returns:
+            Row ID of inserted record
+        """
+        with self.transaction():
+            cursor = self.conn.execute("""
+                INSERT OR IGNORE INTO discovered_pages (
+                    target_page_id, wiki_url, discovery_depth, discovery_status,
+                    first_discovered_by_batch, reference_count
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                page_data.get('target_page_id'),
+                page_data.get('wiki_url'),
+                page_data.get('discovery_depth', 1),
+                page_data.get('discovery_status', 'discovered'),
+                page_data.get('first_discovered_by_batch'),
+                page_data.get('reference_count', 1)
+            ))
+            return cursor.lastrowid
+
+    def add_discovery_source(self, source_data: Dict[str, Any]) -> int:
+        """Record a source page for a discovered page.
+
+        Args:
+            source_data: Dictionary with discovery source details
+                Required: discovered_page_id, source_page_id, batch_id
+                Optional: link_text
+
+        Returns:
+            Row ID of inserted record
+        """
+        with self.transaction():
+            cursor = self.conn.execute("""
+                INSERT INTO discovery_sources (
+                    discovered_page_id, source_page_id, link_text, batch_id
+                ) VALUES (?, ?, ?, ?)
+            """, (
+                source_data.get('discovered_page_id'),
+                source_data.get('source_page_id'),
+                source_data.get('link_text'),
+                source_data.get('batch_id')
+            ))
+            return cursor.lastrowid
+
+    def get_discovered_pages(self, status: Optional[str] = None,
+                            depth: Optional[int] = None,
+                            wiki_url: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get discovered pages with optional filtering.
+
+        Args:
+            status: Filter by discovery_status (discovered, approved, skipped, failed_404, converted)
+            depth: Filter by discovery_depth
+            wiki_url: Filter by wiki_url
+
+        Returns:
+            List of discovered page records
+        """
+        query = "SELECT * FROM discovered_pages WHERE 1=1"
+        params = []
+
+        if status:
+            query += " AND discovery_status = ?"
+            params.append(status)
+        if depth is not None:
+            query += " AND discovery_depth = ?"
+            params.append(depth)
+        if wiki_url:
+            query += " AND wiki_url = ?"
+            params.append(wiki_url)
+
+        query += " ORDER BY reference_count DESC, first_discovered_at ASC"
+
+        cursor = self.conn.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def is_page_discovered(self, page_id: str) -> Optional[Dict[str, Any]]:
+        """Check if a page has been discovered.
+
+        Args:
+            page_id: Target page identifier
+
+        Returns:
+            Dictionary with page data if discovered, None otherwise
+        """
+        cursor = self.conn.execute("""
+            SELECT * FROM discovered_pages WHERE target_page_id = ?
+        """, (page_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_discovery_status(self, page_id: str, new_status: str,
+                               reason: Optional[str] = None,
+                               http_status: Optional[int] = None) -> None:
+        """Update the status of a discovered page.
+
+        Args:
+            page_id: Target page identifier
+            new_status: New discovery status
+            reason: Optional reason for the status change
+            http_status: Optional HTTP status code (for 404 tracking)
+        """
+        with self.transaction():
+            updates = ["discovery_status = ?", "decision_made_at = CURRENT_TIMESTAMP"]
+            params = [new_status]
+
+            if reason:
+                updates.append("decision_reason = ?")
+                params.append(reason)
+
+            if http_status:
+                updates.append("http_status_code = ?")
+                params.append(http_status)
+
+            if new_status == 'converted':
+                updates.append("converted_at = CURRENT_TIMESTAMP")
+
+            params.append(page_id)
+
+            query = f"UPDATE discovered_pages SET {', '.join(updates)} WHERE target_page_id = ?"
+            self.conn.execute(query, params)
+
+    def mark_discovered_as_converted(self, page_id: str, batch_id: str) -> None:
+        """Mark a discovered page as successfully converted.
+
+        Args:
+            page_id: Page identifier
+            batch_id: Batch identifier where conversion occurred
+        """
+        with self.transaction():
+            self.conn.execute("""
+                UPDATE discovered_pages
+                SET discovery_status = 'converted',
+                    converted_at = CURRENT_TIMESTAMP,
+                    converted_batch_id = ?
+                WHERE target_page_id = ?
+            """, (batch_id, page_id))
+
+    def get_discovery_sources(self, discovered_page_id: int) -> List[Dict[str, Any]]:
+        """Get all source pages for a discovered page.
+
+        Args:
+            discovered_page_id: Row ID from discovered_pages table
+
+        Returns:
+            List of discovery source records
+        """
+        cursor = self.conn.execute("""
+            SELECT * FROM discovery_sources
+            WHERE discovered_page_id = ?
+            ORDER BY discovered_at DESC
+        """, (discovered_page_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_approved_pages_for_conversion(self, max_depth: Optional[int] = None) -> List[str]:
+        """Get list of approved page IDs ready for conversion.
+
+        Args:
+            max_depth: Optional maximum discovery depth to include
+
+        Returns:
+            List of page IDs with status='approved'
+        """
+        query = "SELECT target_page_id FROM discovered_pages WHERE discovery_status = 'approved'"
+        params = []
+
+        if max_depth is not None:
+            query += " AND discovery_depth <= ?"
+            params.append(max_depth)
+
+        query += " ORDER BY reference_count DESC"
+
+        cursor = self.conn.execute(query, params)
+        return [row[0] for row in cursor.fetchall()]
+
+    def get_discovery_statistics(self) -> Dict[str, int]:
+        """Get counts for each discovery status.
+
+        Returns:
+            Dictionary with status counts
+        """
+        cursor = self.conn.execute("""
+            SELECT
+                discovery_status,
+                COUNT(*) as count
+            FROM discovered_pages
+            GROUP BY discovery_status
+        """)
+        stats = {row['discovery_status']: row['count'] for row in cursor.fetchall()}
+        # Ensure all statuses are present
+        for status in ['discovered', 'approved', 'skipped', 'failed_404', 'converted']:
+            stats.setdefault(status, 0)
+        return stats
+
+    def increment_discovery_reference_count(self, page_id: str) -> None:
+        """Increment the reference count for a discovered page.
+
+        Args:
+            page_id: Target page identifier
+        """
+        with self.transaction():
+            self.conn.execute("""
+                UPDATE discovered_pages
+                SET reference_count = reference_count + 1
+                WHERE target_page_id = ?
+            """, (page_id,))
+
+    def bulk_update_discovery_status(self, page_ids: List[str], new_status: str,
+                                    reason: Optional[str] = None) -> int:
+        """Bulk update status for multiple discovered pages.
+
+        Args:
+            page_ids: List of page IDs to update
+            new_status: New discovery status
+            reason: Optional reason for the status change
+
+        Returns:
+            Number of pages updated
+        """
+        if not page_ids:
+            return 0
+
+        with self.transaction():
+            placeholders = ','.join('?' * len(page_ids))
+            params = [new_status]
+
+            if reason:
+                query = f"""
+                    UPDATE discovered_pages
+                    SET discovery_status = ?,
+                        decision_made_at = CURRENT_TIMESTAMP,
+                        decision_reason = ?
+                    WHERE target_page_id IN ({placeholders})
+                """
+                params.append(reason)
+            else:
+                query = f"""
+                    UPDATE discovered_pages
+                    SET discovery_status = ?,
+                        decision_made_at = CURRENT_TIMESTAMP
+                    WHERE target_page_id IN ({placeholders})
+                """
+
+            params.extend(page_ids)
+            cursor = self.conn.execute(query, params)
+            return cursor.rowcount
+
+    def check_page_http_status(self, page_id: str, http_status: int) -> None:
+        """Record HTTP status check for a discovered page.
+
+        Args:
+            page_id: Target page identifier
+            http_status: HTTP status code returned
+        """
+        with self.transaction():
+            self.conn.execute("""
+                UPDATE discovered_pages
+                SET http_status_code = ?,
+                    last_check_at = CURRENT_TIMESTAMP,
+                    check_attempt_count = check_attempt_count + 1
+                WHERE target_page_id = ?
+            """, (http_status, page_id))
 
     # Utility operations
 

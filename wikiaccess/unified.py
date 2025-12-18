@@ -24,6 +24,7 @@ from .image_reporting import ImageReportGenerator
 from .hub_reporting import HubReportGenerator
 from .database import ConversionDatabase
 from .link_rewriter import LinkRewriter
+from .discovery import PageDiscoveryEngine
 
 
 def convert_wiki_page(
@@ -289,7 +290,9 @@ def convert_multiple_pages(
     check_accessibility: bool = True,
     use_database: bool = True,
     skip_recent: bool = True,
-    include_accessibility_toolbar: bool = True
+    include_accessibility_toolbar: bool = True,
+    enable_discovery: bool = True,
+    max_discovery_depth: int = 2
 ) -> Dict[str, Dict[str, Any]]:
     """
     Convert multiple DokuWiki pages to accessible documents.
@@ -538,6 +541,34 @@ def convert_multiple_pages(
     if link_stats['links_broken'] > 0 and db:
         page_names_list = list(page_results.keys())
         link_rewriter.generate_broken_links_report(batch_id, page_names_list)
+
+    # Auto-discover new pages from broken links
+    if link_stats['links_broken'] > 0 and db and enable_discovery:
+        print(f"\n{'='*70}\nDiscovering New Pages\n{'='*70}")
+        try:
+            discovery_engine = PageDiscoveryEngine(db, wiki_url, max_discovery_depth)
+
+            # Get current batch depth
+            batch_info = db.get_batch_info(batch_id)
+            current_depth = batch_info.get('discovery_depth', 0) if batch_info else 0
+
+            # Don't discover beyond max depth
+            if current_depth < max_discovery_depth:
+                discovery_stats = discovery_engine.discover_from_batch(batch_id, current_depth)
+
+                print(f"  New discoveries: {discovery_stats['new_discoveries']}")
+                print(f"  Already known: {discovery_stats['already_known']}")
+                print(f"  External links: {discovery_stats['external_links']}")
+
+                if discovery_stats['new_discoveries'] > 0:
+                    print(f"\n📋 Review discovered pages with: python review_discoveries.py")
+                    discovery_engine.close()
+            else:
+                print(f"  Reached max discovery depth ({max_discovery_depth}), skipping")
+        except Exception as e:
+            print(f"⚠️  Discovery error: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Generate landing hub (index.html) if we have reports
     if check_accessibility and combined_reporter:
