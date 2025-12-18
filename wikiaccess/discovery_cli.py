@@ -92,6 +92,20 @@ class DiscoveryCLI:
                 else:
                     print("Invalid action")
 
+        # Auto-exit when all pages reviewed
+        print("\n" + "="*70)
+        print("✓ All pages reviewed!")
+        print("="*70)
+
+        # Show summary
+        stats = self.db.get_discovery_statistics()
+        print(f"\nFinal Status:")
+        print(f"  Approved: {stats['approved']}")
+        print(f"  Skipped: {stats['skipped']}")
+        print(f"  Failed 404: {stats['failed_404']}")
+        print(f"\nNext: Run 'python convert_approved.py' to convert approved pages")
+        print("Exiting...\n")
+
     def _display_page(self, page_data: Dict[str, Any]):
         """Display a discovered page."""
         page_id = page_data['target_page_id']
