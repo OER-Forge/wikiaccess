@@ -92,27 +92,12 @@ class DiscoveryOrchestrator:
         return discovery_stats
 
     def get_discovery_status(self) -> Dict[str, Any]:
-        """Get overall discovery status.
+        """Get overall discovery status using database abstraction.
 
         Returns:
             Dict with discovery statistics across all batches
         """
-        cursor = self.db.conn.execute("""
-            SELECT discovery_status, COUNT(*) as count
-            FROM discovered_pages
-            GROUP BY discovery_status
-        """)
-
-        status_counts = {row[0]: row[1] for row in cursor.fetchall()}
-
-        return {
-            'discovered': status_counts.get('discovered', 0),
-            'approved': status_counts.get('approved', 0),
-            'skipped': status_counts.get('skipped', 0),
-            'failed_404': status_counts.get('failed_404', 0),
-            'converted': status_counts.get('converted', 0),
-            'total': sum(status_counts.values())
-        }
+        return self.db.get_discovery_status_counts()
 
     def approve_pages_by_namespace(self, namespace_pattern: str) -> int:
         """Approve all discovered pages matching a namespace pattern.
@@ -123,15 +108,7 @@ class DiscoveryOrchestrator:
         Returns:
             Number of pages approved
         """
-        cursor = self.db.conn.execute("""
-            UPDATE discovered_pages
-            SET discovery_status = 'approved'
-            WHERE discovery_status = 'discovered'
-            AND target_page_id LIKE ?
-        """, (namespace_pattern.replace('*', '%'),))
-
-        self.db.conn.commit()
-        return cursor.rowcount
+        return self.db.approve_discovered_by_namespace(namespace_pattern)
 
     def approve_pages_by_depth(self, depth: int) -> int:
         """Approve all discovered pages at a specific depth.
@@ -142,15 +119,7 @@ class DiscoveryOrchestrator:
         Returns:
             Number of pages approved
         """
-        cursor = self.db.conn.execute("""
-            UPDATE discovered_pages
-            SET discovery_status = 'approved'
-            WHERE discovery_status = 'discovered'
-            AND discovery_depth = ?
-        """, (depth,))
-
-        self.db.conn.commit()
-        return cursor.rowcount
+        return self.db.approve_discovered_by_depth(depth)
 
     def skip_broken_links(self, max_reference_count: int = 1) -> int:
         """Mark low-reference broken links as 'skipped' to avoid noise.
@@ -161,15 +130,7 @@ class DiscoveryOrchestrator:
         Returns:
             Number of pages skipped
         """
-        cursor = self.db.conn.execute("""
-            UPDATE discovered_pages
-            SET discovery_status = 'skipped'
-            WHERE discovery_status = 'discovered'
-            AND reference_count <= ?
-        """, (max_reference_count,))
-
-        self.db.conn.commit()
-        return cursor.rowcount
+        return self.db.skip_low_reference_pages(max_reference_count)
 
     def get_pages_pending_review(self) -> List[Dict[str, Any]]:
         """Get all pages awaiting manual review.
@@ -177,15 +138,7 @@ class DiscoveryOrchestrator:
         Returns:
             List of discovered pages awaiting approval
         """
-        cursor = self.db.conn.execute("""
-            SELECT target_page_id, discovery_depth, reference_count,
-                   discovery_status
-            FROM discovered_pages
-            WHERE discovery_status = 'discovered'
-            ORDER BY reference_count DESC, discovery_depth ASC
-        """)
-
-        return [dict(row) for row in cursor.fetchall()]
+        return self.db.get_pending_discovery_pages()
 
     def get_pages_ready_to_convert(self) -> List[str]:
         """Get all pages approved and ready for conversion.
@@ -193,14 +146,7 @@ class DiscoveryOrchestrator:
         Returns:
             List of approved page IDs
         """
-        cursor = self.db.conn.execute("""
-            SELECT target_page_id
-            FROM discovered_pages
-            WHERE discovery_status = 'approved'
-            ORDER BY discovery_depth, reference_count DESC
-        """)
-
-        return [row[0] for row in cursor.fetchall()]
+        return self.db.get_approved_for_conversion()
 
     def get_discovery_progress(self) -> Dict[str, Any]:
         """Get detailed discovery progress statistics.
@@ -208,32 +154,9 @@ class DiscoveryOrchestrator:
         Returns:
             Dict with progress information
         """
-        total_cursor = self.db.conn.execute("""
-            SELECT COUNT(*) FROM discovered_pages
-        """)
-        total = total_cursor.fetchone()[0]
-
-        status_cursor = self.db.conn.execute("""
-            SELECT discovery_status, COUNT(*) as count
-            FROM discovered_pages
-            GROUP BY discovery_status
-        """)
-        status_counts = {row[0]: row[1] for row in status_cursor.fetchall()}
-
-        depth_cursor = self.db.conn.execute("""
-            SELECT discovery_depth, COUNT(*) as count
-            FROM discovered_pages
-            GROUP BY discovery_depth
-            ORDER BY discovery_depth
-        """)
-        depth_counts = {row[0]: row[1] for row in depth_cursor.fetchall()}
-
-        return {
-            'total_discovered': total,
-            'by_status': status_counts,
-            'by_depth': depth_counts,
-            'next_action': self._recommend_next_action(status_counts)
-        }
+        progress = self.db.get_discovery_progress()
+        progress['next_action'] = self._recommend_next_action(progress.get('by_status', {}))
+        return progress
 
     def close(self) -> None:
         """Clean up discovery resources."""

@@ -65,15 +65,7 @@ class AccessibilityIssueHandler:
         docx_aa = accessibility_results.get('docx', {}).get('score_aa', 0)
         docx_aaa = accessibility_results.get('docx', {}).get('score_aaa', 0)
 
-        db.conn.execute("""
-            UPDATE pages
-            SET html_wcag_aa_score = ?,
-                html_wcag_aaa_score = ?,
-                docx_wcag_aa_score = ?,
-                docx_wcag_aaa_score = ?
-            WHERE page_id = ?
-        """, (html_aa, html_aaa, docx_aa, docx_aaa, page_id))
-        db.conn.commit()
+        db.update_page_accessibility_scores(page_id, html_aa, html_aaa, docx_aa, docx_aaa)
 
     @staticmethod
     def store_and_update(db: ConversionDatabase, page_id: str, batch_id: str,
@@ -102,31 +94,4 @@ class AccessibilityIssueHandler:
         Returns:
             Dict with scores and issue counts
         """
-        row = db.conn.execute("""
-            SELECT html_wcag_aa_score, html_wcag_aaa_score,
-                   docx_wcag_aa_score, docx_wcag_aaa_score
-            FROM pages
-            WHERE page_id = ?
-        """, (page_id,)).fetchone()
-
-        if not row:
-            return {}
-
-        # Count issues
-        cursor = db.conn.execute("""
-            SELECT level, COUNT(*) as count
-            FROM accessibility_issues
-            WHERE page_id = ?
-            GROUP BY level
-        """, (page_id,))
-
-        issue_counts = {row[0]: row[1] for row in cursor.fetchall()}
-
-        return {
-            'html_aa': row[0],
-            'html_aaa': row[1],
-            'docx_aa': row[2],
-            'docx_aaa': row[3],
-            'issues_aa': issue_counts.get('AA', 0),
-            'issues_aaa': issue_counts.get('AAA', 0)
-        }
+        return db.get_page_accessibility_summary(page_id)

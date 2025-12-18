@@ -262,13 +262,7 @@ class PageDiscoveryEngine:
 
         # Update batch with discovery stats
         if stats['new_discoveries'] > 0:
-            self.db.conn.execute("""
-                UPDATE conversion_batches
-                SET pages_discovered_count = ?,
-                    discovery_enabled = 1
-                WHERE batch_id = ?
-            """, (stats['new_discoveries'], batch_id))
-            self.db.conn.commit()
+            self.db.update_batch_discovery_stats(batch_id, stats['new_discoveries'])
 
             logger.info(
                 f"Auto-discovery complete: {stats['new_discoveries']} new pages discovered"

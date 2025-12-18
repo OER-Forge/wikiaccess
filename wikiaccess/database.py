@@ -1030,6 +1030,223 @@ class ConversionDatabase:
                 WHERE target_page_id = ?
             """, (http_status, page_id))
 
+    # Discovery operations (abstraction layer for discovery_orchestrator)
+
+    def get_discovery_status_counts(self) -> Dict[str, int]:
+        """Get count of discovered pages by status.
+
+        Returns:
+            Dict with counts: {discovered, approved, skipped, failed_404, converted, total}
+        """
+        cursor = self.conn.execute("""
+            SELECT discovery_status, COUNT(*) as count
+            FROM discovered_pages
+            GROUP BY discovery_status
+        """)
+        status_counts = {row[0]: row[1] for row in cursor.fetchall()}
+        return {
+            'discovered': status_counts.get('discovered', 0),
+            'approved': status_counts.get('approved', 0),
+            'skipped': status_counts.get('skipped', 0),
+            'failed_404': status_counts.get('failed_404', 0),
+            'converted': status_counts.get('converted', 0),
+            'total': sum(status_counts.values())
+        }
+
+    def approve_discovered_by_namespace(self, namespace_pattern: str) -> int:
+        """Approve all discovered pages matching namespace pattern.
+
+        Args:
+            namespace_pattern: Pattern like '183_notes:examples:*'
+
+        Returns:
+            Number of pages approved
+        """
+        with self.transaction():
+            cursor = self.conn.execute("""
+                UPDATE discovered_pages
+                SET discovery_status = 'approved'
+                WHERE discovery_status = 'discovered'
+                AND target_page_id LIKE ?
+            """, (namespace_pattern.replace('*', '%'),))
+            return cursor.rowcount
+
+    def approve_discovered_by_depth(self, depth: int) -> int:
+        """Approve all discovered pages at specific depth level.
+
+        Args:
+            depth: Discovery depth to approve
+
+        Returns:
+            Number of pages approved
+        """
+        with self.transaction():
+            cursor = self.conn.execute("""
+                UPDATE discovered_pages
+                SET discovery_status = 'approved'
+                WHERE discovery_status = 'discovered'
+                AND discovery_depth = ?
+            """, (depth,))
+            return cursor.rowcount
+
+    def skip_low_reference_pages(self, max_reference_count: int = 1) -> int:
+        """Mark low-reference discovered pages as skipped.
+
+        Args:
+            max_reference_count: Skip pages referenced <= this many times
+
+        Returns:
+            Number of pages skipped
+        """
+        with self.transaction():
+            cursor = self.conn.execute("""
+                UPDATE discovered_pages
+                SET discovery_status = 'skipped'
+                WHERE discovery_status = 'discovered'
+                AND reference_count <= ?
+            """, (max_reference_count,))
+            return cursor.rowcount
+
+    def get_pending_discovery_pages(self) -> List[Dict[str, Any]]:
+        """Get all discovered pages awaiting approval.
+
+        Returns:
+            List of dicts with page_id, depth, reference_count, status
+        """
+        cursor = self.conn.execute("""
+            SELECT target_page_id as page_id, discovery_depth as depth,
+                   reference_count, discovery_status as status
+            FROM discovered_pages
+            WHERE discovery_status = 'discovered'
+            ORDER BY reference_count DESC, discovery_depth ASC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_approved_for_conversion(self) -> List[str]:
+        """Get all approved pages ready for conversion.
+
+        Returns:
+            List of page IDs
+        """
+        cursor = self.conn.execute("""
+            SELECT target_page_id
+            FROM discovered_pages
+            WHERE discovery_status = 'approved'
+            ORDER BY discovery_depth, reference_count DESC
+        """)
+        return [row[0] for row in cursor.fetchall()]
+
+    def get_discovery_progress(self) -> Dict[str, Any]:
+        """Get comprehensive discovery progress statistics.
+
+        Returns:
+            Dict with totals, status breakdown, depth breakdown
+        """
+        total_cursor = self.conn.execute("""
+            SELECT COUNT(*) FROM discovered_pages
+        """)
+        total = total_cursor.fetchone()[0]
+
+        status_cursor = self.conn.execute("""
+            SELECT discovery_status, COUNT(*) as count
+            FROM discovered_pages
+            GROUP BY discovery_status
+        """)
+        status_counts = {row[0]: row[1] for row in status_cursor.fetchall()}
+
+        depth_cursor = self.conn.execute("""
+            SELECT discovery_depth, COUNT(*) as count
+            FROM discovered_pages
+            GROUP BY discovery_depth
+            ORDER BY discovery_depth
+        """)
+        depth_counts = {row[0]: row[1] for row in depth_cursor.fetchall()}
+
+        return {
+            'total_discovered': total,
+            'by_status': status_counts,
+            'by_depth': depth_counts,
+        }
+
+    # Batch operations
+
+    def update_batch_discovery_stats(self, batch_id: str, pages_discovered: int) -> None:
+        """Update batch with discovery statistics.
+
+        Args:
+            batch_id: Batch identifier
+            pages_discovered: Number of new discoveries
+        """
+        self.conn.execute("""
+            UPDATE conversion_batches
+            SET pages_discovered_count = ?,
+                discovery_enabled = 1
+            WHERE batch_id = ?
+        """, (pages_discovered, batch_id))
+        self.conn.commit()
+
+    # Accessibility operations
+
+    def update_page_accessibility_scores(self, page_id: str,
+                                         html_aa: int, html_aaa: int,
+                                         docx_aa: int, docx_aaa: int) -> None:
+        """Update accessibility scores for a page.
+
+        Args:
+            page_id: Page identifier
+            html_aa: HTML WCAG AA score
+            html_aaa: HTML WCAG AAA score
+            docx_aa: DOCX WCAG AA score
+            docx_aaa: DOCX WCAG AAA score
+        """
+        self.conn.execute("""
+            UPDATE pages
+            SET html_wcag_aa_score = ?,
+                html_wcag_aaa_score = ?,
+                docx_wcag_aa_score = ?,
+                docx_wcag_aaa_score = ?
+            WHERE page_id = ?
+        """, (html_aa, html_aaa, docx_aa, docx_aaa, page_id))
+        self.conn.commit()
+
+    def get_page_accessibility_summary(self, page_id: str) -> Dict[str, Any]:
+        """Get accessibility summary for a page.
+
+        Args:
+            page_id: Page identifier
+
+        Returns:
+            Dict with scores and issue counts
+        """
+        row = self.conn.execute("""
+            SELECT html_wcag_aa_score, html_wcag_aaa_score,
+                   docx_wcag_aa_score, docx_wcag_aaa_score
+            FROM pages
+            WHERE page_id = ?
+        """, (page_id,)).fetchone()
+
+        if not row:
+            return {}
+
+        # Count issues by level
+        cursor = self.conn.execute("""
+            SELECT level, COUNT(*) as count
+            FROM accessibility_issues
+            WHERE page_id = ?
+            GROUP BY level
+        """, (page_id,))
+
+        issue_counts = {row[0]: row[1] for row in cursor.fetchall()}
+
+        return {
+            'html_aa': row[0],
+            'html_aaa': row[1],
+            'docx_aa': row[2],
+            'docx_aaa': row[3],
+            'issues_aa': issue_counts.get('AA', 0),
+            'issues_aaa': issue_counts.get('AAA', 0)
+        }
+
     # Utility operations
 
     def get_all_page_ids(self, batch_id: str) -> set:
