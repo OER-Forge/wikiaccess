@@ -160,23 +160,21 @@ def main():
             if result.get('skipped', False):
                 continue
 
-            # Check if conversion was successful
-            # The result has 'html' or 'docx' keys with conversion details
-            has_html = 'html' in result and result['html'].get('conversion_status') in ['SUCCESS', 'PARTIAL']
-            has_docx = 'docx' in result and result['docx'].get('conversion_status') in ['SUCCESS', 'PARTIAL']
-
-            if has_html or has_docx:
-                try:
-                    db.mark_discovered_as_converted(page_id, batch_id)
-                    converted_count += 1
-                    print(f"✓ {page_id}: converted")
-                except Exception as e:
-                    print(f"⚠️  {page_id}: error updating status - {e}")
-                    failed_count += 1
-            else:
+            # Check if conversion had an error
+            if 'error' in result:
                 failed_count += 1
-                error_msg = result.get('error', 'Unknown error')
+                error_msg = result['error']
                 print(f"✗ {page_id}: conversion failed ({error_msg})")
+                continue
+
+            # If no error and not skipped, it was successful
+            try:
+                db.mark_discovered_as_converted(page_id, batch_id)
+                converted_count += 1
+                print(f"✓ {page_id}: converted")
+            except Exception as e:
+                print(f"⚠️  {page_id}: error updating status - {e}")
+                failed_count += 1
 
         print(f"\n{'='*70}")
         print(f"Conversion Summary")
