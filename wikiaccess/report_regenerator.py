@@ -280,6 +280,15 @@ class ReportRegenerator:
                         'downloaded_at': img_data['downloaded_at']
                     })
 
+        # Compute link_stats from database if not provided
+        if not link_stats:
+            all_broken = db.get_all_broken_links()
+            link_stats = {
+                'links_found': sum(link['reference_count'] for link in all_broken),
+                'links_rewritten': 0,
+                'links_broken': len(all_broken)
+            }
+
         results = {
             'accessibility': self.regenerate_accessibility_report(db),
             'image': self.regenerate_image_report(db),
