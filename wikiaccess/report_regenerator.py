@@ -76,9 +76,8 @@ class ReportRegenerator:
                 reporter.add_page_reports(page_display_name, html_report, docx_report)
 
             reporter.generate_detailed_reports()
-            report_path = self.reports_dir / 'accessibility_report.html'
+            report_path = reporter.generate_dashboard()
 
-            print(f"✓ Accessibility report: {report_path}")
             return str(report_path)
 
         except Exception as e:

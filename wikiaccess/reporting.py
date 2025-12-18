@@ -18,6 +18,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import html as html_lib
 import os
+from markupsafe import Markup
 from .report_components import (
     get_breadcrumb_navigation, get_breadcrumb_javascript,
     build_report_header, build_stat_cards, build_action_buttons
@@ -134,11 +135,11 @@ class ReportGenerator:
                 'detail_link': f'{page_name}_accessibility.html',
                 'html_file_link': f'../html/{page_name}.html',
                 'docx_file_link': f'../docx/{page_name}.docx',
-                'html_aa_badge': self._get_score_badge(html_report['score_aa']),
-                'html_aaa_badge': self._get_score_badge(html_report['score_aaa']),
+                'html_aa_badge': Markup(self._get_score_badge(html_report['score_aa'])),
+                'html_aaa_badge': Markup(self._get_score_badge(html_report['score_aaa'])),
                 'html_aa_issues': len(html_report['issues_aa']),
-                'docx_aa_badge': self._get_score_badge(docx_report['score_aa']),
-                'docx_aaa_badge': self._get_score_badge(docx_report['score_aaa']),
+                'docx_aa_badge': Markup(self._get_score_badge(docx_report['score_aa'])),
+                'docx_aaa_badge': Markup(self._get_score_badge(docx_report['score_aaa'])),
                 'docx_aa_issues': len(docx_report['issues_aa'])
             })
 
